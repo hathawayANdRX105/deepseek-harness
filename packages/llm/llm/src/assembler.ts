@@ -106,13 +106,26 @@ export class BlockAssembler {
   }
 
   private assemble(partial: PartialBlock, index: number): ContentBlock {
-    if (partial.block) return partial.block
+    if (partial.block) {
+      // A `block-end` block is authoritative, but an id-less provider leaves an
+      // empty string that `??` cannot catch. Prefer the id the deltas already
+      // carried, then the positional fallback, so both paths agree and the
+      // logged chunk ids stay correlatable with the emitted block.
+      const id = partial.toolCallId !== undefined && partial.toolCallId.length > 0
+        ? partial.toolCallId
+        : brandString<ToolCallId>(`call-${index}`)
+      return partial.block.type === 'tool-call' && partial.block.id.length === 0
+        ? { ...partial.block, id }
+        : partial.block
+    }
     switch (partial.blockType) {
       case 'text': return { type: 'text', text: partial.text }
       case 'reasoning': return { type: 'reasoning', text: partial.text }
       case 'tool-call': return {
         type: 'tool-call',
-        id: partial.toolCallId ?? brandString<ToolCallId>(`call-${index}`),
+        id: partial.toolCallId !== undefined && partial.toolCallId.length > 0
+          ? partial.toolCallId
+          : brandString<ToolCallId>(`call-${index}`),
         name: partial.toolCallName ?? '',
         arguments: partial.toolCallArguments,
       }
