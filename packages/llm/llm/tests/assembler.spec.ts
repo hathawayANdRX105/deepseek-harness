@@ -110,6 +110,41 @@ describe('BlockAssembler', () => {
     ])
   })
 
+  it('falls back to a positional id when a delta carries an empty tool-call id', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({ type: 'tool-call-delta', index: 0, id: ToolCallId(''), name: 'echo', argumentsDelta: '{}' })
+    // An empty string is not `undefined`: without the fallback the block keeps it
+    // and resume cannot match the tool result to its source call.
+    expect(assembler.blocks()).toEqual([
+      { type: 'tool-call', id: ToolCallId('call-0'), name: 'echo', arguments: '{}' },
+    ])
+  })
+
+  it('falls back to a positional id when block-end closes a tool-call with an empty id', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({ type: 'block-start', index: 0, blockType: 'tool-call' })
+    assembler.push({
+      type: 'block-end',
+      index: 0,
+      block: { type: 'tool-call', id: ToolCallId(''), name: 'echo', arguments: '{}' },
+    })
+    expect(assembler.blocks()).toEqual([
+      { type: 'tool-call', id: ToolCallId('call-0'), name: 'echo', arguments: '{}' },
+    ])
+  })
+
+  it('keeps other block-end content untouched when substituting the id', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({
+      type: 'block-end',
+      index: 2,
+      block: { type: 'tool-call', id: ToolCallId(''), name: 'bash', arguments: '{"command":"ls"}' },
+    })
+    expect(assembler.blocks()).toEqual([
+      { type: 'tool-call', id: ToolCallId('call-2'), name: 'bash', arguments: '{"command":"ls"}' },
+    ])
+  })
+
   it('exposes usage via the getter when a usage chunk was received', () => {
     const assembler = new BlockAssembler()
     assembler.push({ type: 'text-delta', index: 0, text: 'msg' })

@@ -106,13 +106,22 @@ export class BlockAssembler {
   }
 
   private assemble(partial: PartialBlock, index: number): ContentBlock {
-    if (partial.block) return partial.block
+    if (partial.block) {
+      // A `block-end` block is authoritative, but an id-less provider leaves an
+      // empty string that `??` cannot catch; resume cannot match its tool
+      // result, so substitute the same positional fallback.
+      return partial.block.type === 'tool-call' && partial.block.id.length === 0
+        ? { ...partial.block, id: brandString<ToolCallId>(`call-${index}`) }
+        : partial.block
+    }
     switch (partial.blockType) {
       case 'text': return { type: 'text', text: partial.text }
       case 'reasoning': return { type: 'reasoning', text: partial.text }
       case 'tool-call': return {
         type: 'tool-call',
-        id: partial.toolCallId ?? brandString<ToolCallId>(`call-${index}`),
+        id: partial.toolCallId !== undefined && partial.toolCallId.length > 0
+          ? partial.toolCallId
+          : brandString<ToolCallId>(`call-${index}`),
         name: partial.toolCallName ?? '',
         arguments: partial.toolCallArguments,
       }
