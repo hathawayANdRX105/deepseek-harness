@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BlockAssembler, ToolCallId, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { assembleAssistantStream, AssistantStreamAccumulator, BlockAssembler, ToolCallId, type StreamChunk } from '@deepseek-ai/dsh-llm'
 
 describe('BlockAssembler', () => {
   it('assembles interleaved text, reasoning, and tool-call deltas', () => {
@@ -120,6 +120,18 @@ describe('BlockAssembler', () => {
     ])
   })
 
+  it('prefers the delta-carried id when block-end closes a tool-call with an empty id', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({ type: 'block-start', index: 0, blockType: 'tool-call' })
+    assembler.push({ type: 'tool-call-delta', index: 0, id: ToolCallId('call-real'), name: 'echo', argumentsDelta: '{}' })
+    assembler.push({ type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId(''), name: 'echo', arguments: '{}' } })
+    // The authoritative block lost the id, but the stream already carried one:
+    // discarding it would desynchronize the emitted block from the logged chunks.
+    expect(assembler.blocks()).toEqual([
+      { type: 'tool-call', id: ToolCallId('call-real'), name: 'echo', arguments: '{}' },
+    ])
+  })
+
   it('falls back to a positional id when block-end closes a tool-call with an empty id', () => {
     const assembler = new BlockAssembler()
     assembler.push({ type: 'block-start', index: 0, blockType: 'tool-call' })
@@ -142,6 +154,27 @@ describe('BlockAssembler', () => {
     })
     expect(assembler.blocks()).toEqual([
       { type: 'tool-call', id: ToolCallId('call-2'), name: 'bash', arguments: '{"command":"ls"}' },
+    ])
+  })
+
+  it('reproduces the empty-id fallback through durable stream replay', () => {
+    const accumulator = new AssistantStreamAccumulator()
+    const chunks: StreamChunk[] = [
+      { type: 'block-start', index: 0, blockType: 'tool-call' },
+      { type: 'tool-call-delta', index: 0, id: ToolCallId(''), name: 'echo', argumentsDelta: '{}' },
+      { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId(''), name: 'echo', arguments: '{}' } },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ]
+    for (const chunk of chunks) accumulator.push({ time: 1, chunk })
+    // The write path asserts the frozen message content against this replay
+    // (generation.ts `assertCurrentAssistantStreams`); a fallback that diverged
+    // from live assembly would break a session this fix is meant to keep open.
+    const live = new BlockAssembler()
+    for (const chunk of chunks) live.push(chunk)
+    const replayed = assembleAssistantStream([...accumulator.snapshot()])
+    expect(replayed.blocks()).toEqual(live.blocks())
+    expect(replayed.blocks()).toEqual([
+      { type: 'tool-call', id: ToolCallId('call-0'), name: 'echo', arguments: '{}' },
     ])
   })
 

@@ -108,10 +108,14 @@ export class BlockAssembler {
   private assemble(partial: PartialBlock, index: number): ContentBlock {
     if (partial.block) {
       // A `block-end` block is authoritative, but an id-less provider leaves an
-      // empty string that `??` cannot catch; resume cannot match its tool
-      // result, so substitute the same positional fallback.
+      // empty string that `??` cannot catch. Prefer the id the deltas already
+      // carried, then the positional fallback, so both paths agree and the
+      // logged chunk ids stay correlatable with the emitted block.
+      const id = partial.toolCallId !== undefined && partial.toolCallId.length > 0
+        ? partial.toolCallId
+        : brandString<ToolCallId>(`call-${index}`)
       return partial.block.type === 'tool-call' && partial.block.id.length === 0
-        ? { ...partial.block, id: brandString<ToolCallId>(`call-${index}`) }
+        ? { ...partial.block, id }
         : partial.block
     }
     switch (partial.blockType) {
