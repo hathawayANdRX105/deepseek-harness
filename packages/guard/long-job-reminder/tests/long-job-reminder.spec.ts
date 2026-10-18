@@ -235,13 +235,12 @@ describe('long-job-reminder real Loader composition', () => {
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
     context.loader.builtins.include = Include
-    context.loader.internal = {
-      version: 'v2',
-      async import(specifier: string) {
-        if (specifier === 'stub-jobs') return stubJobs
-        if (specifier === '@deepseek-ai/dsh-long-job-reminder') return LongJobReminder
-        throw new Error(`unexpected Loader import: ${specifier}`)
-      },
+    const internal = context.loader.internal
+    if (internal === undefined) throw new Error('expected the Loader to expose Node module loading')
+    internal.import = async (specifier: string) => {
+      if (specifier === 'stub-jobs') return stubJobs
+      if (specifier === '@deepseek-ai/dsh-long-job-reminder') return LongJobReminder
+      throw new Error(`unexpected Loader import: ${specifier}`)
     }
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()

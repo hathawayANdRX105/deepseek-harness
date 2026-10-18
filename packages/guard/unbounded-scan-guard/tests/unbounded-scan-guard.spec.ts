@@ -314,14 +314,13 @@ describe('unbounded-scan-guard real Loader composition', () => {
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
     context.loader.builtins.include = Include
-    context.loader.internal = {
-      version: 'v2',
-      async import(specifier: string) {
-        if (specifier === '@deepseek-ai/dsh-system-prompt') return SystemPrompt
-        if (specifier === '@deepseek-ai/dsh-tools') return ToolRuntime
-        if (specifier === '@deepseek-ai/dsh-unbounded-scan-guard') return ScanGuard
-        throw new Error(`unexpected Loader import: ${specifier}`)
-      },
+    const internal = context.loader.internal
+    if (internal === undefined) throw new Error('expected the Loader to expose Node module loading')
+    internal.import = async (specifier: string) => {
+      if (specifier === '@deepseek-ai/dsh-system-prompt') return SystemPrompt
+      if (specifier === '@deepseek-ai/dsh-tools') return ToolRuntime
+      if (specifier === '@deepseek-ai/dsh-unbounded-scan-guard') return ScanGuard
+      throw new Error(`unexpected Loader import: ${specifier}`)
     }
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
