@@ -122,6 +122,25 @@ describe('Agent', () => {
     expect(adapter.requests).toHaveLength(1)
   })
 
+  it('steer() refuses a message the durable session could not replay', async () => {
+    const adapter = new MockAdapter([textResponse('ok')])
+    const ctx = await harness(adapter)
+    const agent = await ctx.agentLoop.create(SessionId('a1'), { provider: 'mock', model: 'mock' })
+    const complete = createUserMessage({ content: [{ type: 'text', text: 'steer' }], source: { kind: 'test' } })
+    const unidentified = { ...complete }
+    delete (unidentified as { id?: unknown }).id
+    const sourceless = { ...complete }
+    delete (sourceless as { source?: unknown }).source
+
+    expect(() => { agent.steer(unidentified) }).toThrow('agent inbox message requires a nonempty id')
+    expect(() => { agent.steer(sourceless) })
+      .toThrow(`agent inbox message "${complete.id}" requires a producer-owned source kind`)
+    expect(agent.session.snapshotEvents()).toHaveLength(0)
+    expect(agent.inbox.nextStep).toEqual([])
+    expect(agent.status).toBe('idle')
+    expect(adapter.requests).toHaveLength(0)
+  })
+
   it('emits one running and idle transition for one completed turn', async () => {
     const ctx = await harness(new MockAdapter([textResponse('ok')]))
     const agent = await ctx.agentLoop.create(SessionId('a1'), { provider: 'mock', model: 'mock' })

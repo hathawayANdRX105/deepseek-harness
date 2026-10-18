@@ -23,6 +23,31 @@ export const inboxProjectionSchema = z.object({
   'next-step': z.array(z.custom<UserMessage>()).readonly(),
 }).readonly()
 
+/**
+ * Refuse a pending message the durable session could not replay. Hand-written
+ * plugin values reach the inbox without the identity, role, content, and
+ * producer-owned source kind that a persisted `user/message` requires.
+ * @param message - message proposed for insertion.
+ */
+function assertPendingMessage(message: UserMessage): void {
+  const { id, role, content, source } = message as { id: unknown; role: unknown; content: unknown; source: unknown }
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('agent inbox message requires a nonempty id')
+  }
+  if (role !== 'user') {
+    throw new Error(`agent inbox message "${id}" must have role "user"`)
+  }
+  const kind = typeof source === 'object' && source !== null
+    ? (source as Readonly<Record<string, unknown>>)['kind']
+    : undefined
+  if (typeof kind !== 'string' || kind.length === 0 || kind === 'plugin') {
+    throw new Error(`agent inbox message "${id}" requires a producer-owned source kind`)
+  }
+  if (!Array.isArray(content)) {
+    throw new Error(`agent inbox message "${id}" requires a content array`)
+  }
+}
+
 /** Standard fold that reconstructs pending input and rejects invalid durable splice history. */
 export const inboxProjectionDefinition = {
   key: 'inbox',
@@ -202,6 +227,7 @@ export class ReactLoopInbox implements InboxContract {
     inserted: UserMessage[],
     discardRemoved: boolean,
   ): UserMessage[] {
+    for (const message of inserted) assertPendingMessage(message)
     const state = this.current()
     const inbox = state[target]
     const truncatedStart = Math.trunc(start)

@@ -211,7 +211,13 @@ Dispatch requires `provider` and `model` after `agent/request`. An explicit `rea
 The inbox is the delivery vocabulary — two ordered pending-message lists the agent owns as a durable projection:
 
 ```ts type-equiv
-/** Agent-owned access to pending work; concrete storage belongs to the driver. */
+/**
+ * Agent-owned access to pending work; concrete storage belongs to the driver.
+ * A pending message is durable, so insertion and replacement require a
+ * nonempty `id`, role `user`, a content array, and a producer-owned
+ * `source.kind` (`plugin` is retired); a value the session could not replay is
+ * refused at the mutation.
+ */
 interface Inbox {
   /** Prompts awaiting individual turns. */
   readonly nextTurn: readonly UserMessage[]

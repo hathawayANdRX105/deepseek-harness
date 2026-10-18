@@ -44,7 +44,13 @@ export interface CancelOptions {
   keepInbox?: boolean | undefined
 }
 
-/** Agent-owned access to pending work; concrete storage belongs to the driver. */
+/**
+ * Agent-owned access to pending work; concrete storage belongs to the driver.
+ * A pending message is durable, so insertion and replacement require a
+ * nonempty `id`, role `user`, a content array, and a producer-owned
+ * `source.kind` (`plugin` is retired); a value the session could not replay is
+ * refused at the mutation.
+ */
 export interface Inbox {
   /** Prompts awaiting individual turns. */
   readonly nextTurn: readonly UserMessage[]

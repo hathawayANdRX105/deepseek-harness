@@ -44,17 +44,17 @@ await handle.dispose()   // stops the loop, unregisters, removes the session, un
 
 ### 驱动 agent 的对话
 
-句柄的方法把带标识的 user 角色消息路由进 agent 的收件箱。`followup()` 排队一条普通的下一个轮次提示词并唤醒驱动器；`steer()` 提交下一步输入并唤醒它；`inject()` 添加面向模型的上下文但不唤醒驱动器，因此它落在下一个被接纳的步骤中。`cancel(cause)` 中止当前活动，并在未设置 `keepInbox` 时清除待处理工作；`whenIdle()` 会在整个 agent 达到完全停稳后完成。
+句柄的方法把带标识的 user 角色消息路由进 agent 的收件箱；用 `@deepseek-ai/dsh-llm` 的 `createUserMessage()` 构造每条消息。`followup()` 排队一条普通的下一个轮次提示词并唤醒驱动器；`steer()` 提交下一步输入并唤醒它；`inject()` 添加面向模型的上下文但不唤醒驱动器，因此它落在下一个被接纳的步骤中。`cancel(cause)` 中止当前活动，并在未设置 `keepInbox` 时清除待处理工作；`whenIdle()` 会在整个 agent 达到完全停稳后完成。
 
 ```text
-handle.agent.followup({
+handle.agent.followup(createUserMessage({
   content: [{ type: 'text', text: 'Summarize this workspace.' }],
   source: { kind: 'user' },
-})
-handle.agent.steer({
+}))
+handle.agent.steer(createUserMessage({
   content: [{ type: 'text', text: 'Focus on the tests.' }],
   source: { kind: 'my-plugin' },
-})
+}))
 await handle.agent.whenIdle()
 ```
 

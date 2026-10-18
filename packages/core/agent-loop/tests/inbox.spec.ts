@@ -226,6 +226,27 @@ describe('ReactLoopInbox', () => {
       .toThrow(`message "${replacement.id}" is already pending`)
   })
 
+  it('refuses insertion of a message the durable session could not replay', async () => {
+    const { agent } = await inboxAgent('admission-inbox')
+    const complete = createUserMessage({ content: [{ type: 'text', text: 'ok' }], source: { kind: 'user' } })
+    const candidate = (fields: { id?: unknown; role?: unknown; content?: unknown; source?: unknown }): UserMessage =>
+      ({ ...fields }) as UserMessage
+    const denials: [UserMessage, string][] = [
+      [candidate({ ...complete, id: undefined }), 'agent inbox message requires a nonempty id'],
+      [candidate({ ...complete, role: 'assistant' }), `agent inbox message "${complete.id}" must have role "user"`],
+      [candidate({ ...complete, content: undefined }), `agent inbox message "${complete.id}" requires a content array`],
+      [candidate({ ...complete, source: undefined }), `agent inbox message "${complete.id}" requires a producer-owned source kind`],
+      [candidate({ ...complete, source: { kind: '' } }), `agent inbox message "${complete.id}" requires a producer-owned source kind`],
+      [candidate({ ...complete, source: { kind: 'plugin' } }), `agent inbox message "${complete.id}" requires a producer-owned source kind`],
+    ]
+
+    for (const [message, rule] of denials) {
+      expect(() => { agent.inbox.append('next-turn', message) }).toThrow(rule)
+    }
+    expect(agent.inbox.nextTurn).toEqual([])
+    expect(agent.session.snapshotEvents()).toEqual([])
+  })
+
   it('normalizes splice coordinates, rejects duplicate identities, and reports missing removals', async () => {
     const { agent } = await inboxAgent('splice-inbox')
     const first = createUserMessage({

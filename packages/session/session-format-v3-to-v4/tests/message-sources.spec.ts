@@ -38,6 +38,7 @@ describe('V4 source admission', () => {
     for (const source of [null, [], {}, { kind: '' }, { kind: 1 }, { kind: 'plugin', plugin: 'compact' }]) {
       expect(() => restore(source)).toThrow(/producer-owned source kind/)
       expect(() => { assertV4MessageSources(event(source)) }).toThrow(/producer-owned source kind/)
+      expect(() => sessionFormatCatalog.encodeCurrentEvent(event(source))).toThrow(/producer-owned source kind/)
     }
   })
 
