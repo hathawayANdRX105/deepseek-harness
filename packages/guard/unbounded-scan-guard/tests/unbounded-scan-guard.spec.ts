@@ -322,7 +322,7 @@ describe('unbounded-scan-guard real Loader composition', () => {
         if (specifier === '@deepseek-ai/dsh-unbounded-scan-guard') return ScanGuard
         throw new Error(`unexpected Loader import: ${specifier}`)
       },
-    } as unknown as NonNullable<typeof context.loader.internal>
+    }
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
 

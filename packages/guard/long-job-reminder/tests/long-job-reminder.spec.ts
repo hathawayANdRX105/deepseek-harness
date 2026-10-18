@@ -242,7 +242,7 @@ describe('long-job-reminder real Loader composition', () => {
         if (specifier === '@deepseek-ai/dsh-long-job-reminder') return LongJobReminder
         throw new Error(`unexpected Loader import: ${specifier}`)
       },
-    } as unknown as NonNullable<typeof context.loader.internal>
+    }
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
 
