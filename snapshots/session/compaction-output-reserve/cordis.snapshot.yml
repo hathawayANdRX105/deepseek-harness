@@ -1,5 +1,8 @@
-# With 1,800 tokens of headroom, a 1,000-token output reservation lowers the
-# trigger from 6,782 to 5,782, between the history and its condensed replacement.
+# The window is tuned so the 1,000-token output reservation lowers the
+# compaction trigger into the gap between the replayed history and its
+# condensed replacement: exactly one compaction happens after the tool
+# result. A tool-schema change that moves the request prefix moves this
+# band, so re-tune the window rather than the asserted transcript.
 
 - id: agent-instructions
   disabled: true
@@ -31,7 +34,7 @@
             name: DeepSeek
             models:
               - id: deepseek-v4-flash
-                contextWindow: 8582
+                contextWindow: 8800
                 defaultMaxTokens: 1000
     - id: compaction-working-directory
       name: '../../../packages/test-support/session-snapshot/tests/fixtures/compaction-working-directory.ts'

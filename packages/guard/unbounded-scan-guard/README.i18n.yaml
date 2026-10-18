@@ -1,0 +1,67 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/guard/unbounded-scan-guard/README.md
+/:
+  en: d244fa977d23a834
+  zh: 076a0e15a97e063a
+/deepseek-ai-dsh-unbounded-scan-guard:
+  en: 6e3bf4dfbcd0eeaa
+  zh: 740846d7b3ae7729
+/deepseek-ai-dsh-unbounded-scan-guard/summary:
+  en: 3d11477412de1b30
+  zh: 9e7d5b89ffaf2e19
+/deepseek-ai-dsh-unbounded-scan-guard/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-unbounded-scan-guard/use-this-package:
+  en: 85b8bc5aba121490
+  zh: 9300cd0897704253
+/deepseek-ai-dsh-unbounded-scan-guard/use-this-package/when-to-choose-it:
+  en: 8934bd8262470fec
+  zh: 5bc16fed5353546d
+/deepseek-ai-dsh-unbounded-scan-guard/use-this-package/setting-the-policy:
+  en: b6b1fc0a3726da47
+  zh: 7a1a5cd13a073c2b
+/deepseek-ai-dsh-unbounded-scan-guard/use-this-package/what-you-get:
+  en: a32cc5b1160d72dd
+  zh: ec72d1b8fdbf6778
+/deepseek-ai-dsh-unbounded-scan-guard/understand-the-implementation:
+  en: 6014893df2baaf90
+  zh: 94da581c20b53523
+/deepseek-ai-dsh-unbounded-scan-guard/understand-the-implementation/design-philosophy:
+  en: 1de093aff2eac710
+  zh: ae3df1fd8bedf134
+/deepseek-ai-dsh-unbounded-scan-guard/understand-the-implementation/what-counts-as-an-unbounded-walk:
+  en: 4ac6c6ffea82c28e
+  zh: 14bcb2ee8e6599ad
+/deepseek-ai-dsh-unbounded-scan-guard/understand-the-implementation/source-map:
+  en: 1329b520d58ca185
+  zh: 8dd71d4172eff567
+/deepseek-ai-dsh-unbounded-scan-guard/further-exploration:
+  en: 682f314690c1f181
+  zh: d47b7e30569ae949
+/deepseek-ai-dsh-unbounded-scan-guard/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-unbounded-scan-guard/model-experience/denied-tool-call:
+  en: c7dc43e4927be191
+  zh: 8780b564bad3cd63
+/deepseek-ai-dsh-unbounded-scan-guard/model-experience/denied-tool-call/what-the-model-sees:
+  en: 33387deaa8a61864
+  zh: d5e73d466639d8d0
+/deepseek-ai-dsh-unbounded-scan-guard/model-experience/denied-tool-call/what-the-model-sees/denial-reason-template:
+  en: d3fa8fbe06ea212c
+  zh: afa3ab816af0c784
+/deepseek-ai-dsh-unbounded-scan-guard/model-experience/denied-tool-call/token-effect:
+  en: 644d55ba18c42d6f
+  zh: 0d783d5f99ac3f10
+/deepseek-ai-dsh-unbounded-scan-guard/model-experience/denied-tool-call/kv-cache-effect:
+  en: afe272034be9508a
+  zh: b3d9ab61aa246526
+/deepseek-ai-dsh-unbounded-scan-guard/known-limitations-and-deferred-work:
+  en: 92c97287b38ddcb6
+  zh: 9acd19db11adcf8b
+/deepseek-ai-dsh-unbounded-scan-guard/known-limitations-and-deferred-work/dev-note:
+  en: ceef957c318fb587
+  zh: 5f4b8c8e63e4a7bd

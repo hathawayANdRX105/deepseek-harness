@@ -484,6 +484,8 @@
     { "path": "./packages/preset/agent-preset" },
     { "path": "./packages/preset/persona" },
     { "path": "./packages/guard/repeat-tool-reminder" },
+    { "path": "./packages/guard/long-job-reminder" },
+    { "path": "./packages/guard/unbounded-scan-guard" },
     { "path": "./packages/extensions/cordis-host-runner" },
     { "path": "./packages/extensions/tool-cordis" },
     { "path": "./packages/experimental/hook-protocol" },

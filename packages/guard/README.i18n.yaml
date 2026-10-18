@@ -3,23 +3,23 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/guard/README.md
 /:
-  en: 686a2d1a60d83d95
-  zh: a83604e78920e5f8
+  en: edc7c15bbadddac4
+  zh: c34dea39f2f9723a
 /guard-loop-hygiene-guard-family:
   en: 7ec1ea7779315a9c
   zh: 0786cd17a5bc5980
 /guard-loop-hygiene-guard-family/summary:
-  en: 8569a7ad49a968c9
-  zh: 911e6327d70294a8
+  en: d6f74d927c229534
+  zh: 94a311f0e5f0971a
 /guard-loop-hygiene-guard-family/table-of-contents:
   en: 1eb35b015a6c423f
   zh: a8a3dceee2c9e943
 /guard-loop-hygiene-guard-family/packages:
-  en: 94709a168b24fa55
-  zh: 3eb300975fdc440c
+  en: 5657fee523e74627
+  zh: 5b2d4f836c92b180
 /guard-loop-hygiene-guard-family/related-documentation:
-  en: 9289eddb3e91bbb3
-  zh: 5b2ae5b3986fab82
+  en: 6508f91b555a35f4
+  zh: 3318a494ff8b6f8b
 /guard-loop-hygiene-guard-family/dev-note:
   en: 5de1d6304e00c58f
   zh: 8d8225361cfa29e5

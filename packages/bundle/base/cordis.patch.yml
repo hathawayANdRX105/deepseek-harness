@@ -276,10 +276,17 @@
     - id: tool-bash
       name: '@deepseek-ai/dsh-tool-bash'
       disabled: !!js process.platform === 'win32'
+      # A foreground command that reaches the deadline is killed and reported,
+      # rather than detached into an unsupervised job; long work declares
+      # itself with `run_in_background` or a larger `timeoutMs`.
+      config:
+        promoteOnTimeout: false
 
     - id: tool-pwsh
       name: '@deepseek-ai/dsh-tool-pwsh'
       disabled: !!js process.platform !== 'win32'
+      config:
+        promoteOnTimeout: false
 
     - id: tool-jobs
       name: '@deepseek-ai/dsh-tool-jobs'
@@ -445,6 +452,18 @@
       config:
         thresholds: [3, 5, 8]
         argumentsPreviewChars: 500
+
+    # Refuses a tree-wide search whose starting directory holds build or
+    # dependency trees, and names the narrowed command instead.
+    - id: unbounded-scan-guard
+      name: '@deepseek-ai/dsh-unbounded-scan-guard'
+
+    # Tells the model about background jobs that outlived their budget, while
+    # it can still collect or stop them.
+    - id: long-job-reminder
+      name: '@deepseek-ai/dsh-long-job-reminder'
+      config:
+        remindAfterMs: 120000
 
     # The shared base enables the stable model-facing web_search and web_fetch
     # tools. The Web app disables this host row and composes both tools per agent

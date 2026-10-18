@@ -250,8 +250,10 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@deepseek-ai/dsh-long-job-reminder` | yes | Job-duration guard plugin: reminds the model about background jobs that have run past a configured budget |
 | `@deepseek-ai/dsh-repeat-tool-reminder` | yes | Repeat-tool-call guard plugin: advisory reminders when an agent loops on identical tool calls |
 | `@deepseek-ai/dsh-tool-call-timeout-policy` | no | Tool-call timeout policy: a tools/execute wrapper that arms a per-tool deadline on exec.signal and returns TOOL_TIMEOUT when it wins |
+| `@deepseek-ai/dsh-unbounded-scan-guard` | yes | Shell scan policy: denies tree-wide searches that would walk build or dependency directories |
 
 ## host
 

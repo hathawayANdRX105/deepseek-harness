@@ -2108,6 +2108,35 @@ export type Config = Readonly<Record<string, never>>
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-llm-retry -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-long-job-reminder -->
+<a id="deepseek-aidsh-long-job-reminder"></a>
+
+## `@deepseek-ai/dsh-long-job-reminder`
+
+- `inject`: `jobs`
+- `source`: [`packages/guard/long-job-reminder/src/index.ts:30`](../packages/guard/long-job-reminder/src/index.ts)
+
+```ts config-catalog
+/** Plugin configuration: when a reminder is due, and how much of each job it quotes. */
+export interface Config {
+  /**
+   * Wall-clock milliseconds a job may run before the model is told about it
+   * (default 120000). The shipped foreground command budget is shorter, so a
+   * job past this point is one that was detached and then left alone.
+   */
+  remindAfterMs?: number
+  /** Maximum jobs one reminder lists, longest-running first (default 5). */
+  maxListed?: number
+  /**
+   * Maximum characters of a job label quoted in the reminder (default 120).
+   * A label is producer-supplied and bounded only for what this guard writes;
+   * the cap never affects which jobs are listed.
+   */
+  labelPreviewChars?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-long-job-reminder -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-lsp-stdio -->
 <a id="deepseek-aidsh-lsp-stdio"></a>
 
@@ -4203,6 +4232,37 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-typert-loader -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-unbounded-scan-guard -->
+<a id="deepseek-aidsh-unbounded-scan-guard"></a>
+
+## `@deepseek-ai/dsh-unbounded-scan-guard`
+
+- `inject`: `tools`
+- `source`: [`packages/guard/unbounded-scan-guard/src/index.ts:28`](../packages/guard/unbounded-scan-guard/src/index.ts)
+
+```ts config-catalog
+/**
+ * Plugin configuration. Every list is deployment policy: the defaults cover
+ * the trees this repository's own workloads produce, and a composition that
+ * knows its own layout replaces them from cordis.yml.
+ */
+export interface Config {
+  /**
+   * Directory names that make a scan of their parent unbounded (default
+   * `['node_modules', 'target', '.git', '.venv', 'venv', '__pycache__', '.next', '.turbo', 'vendor', '.wt']`).
+   * A name that exists nowhere under a scan root never triggers a denial.
+   */
+  heavyDirectories?: string[]
+  /**
+   * Tool names whose calls are inspected (default `['bash']`). Another shell
+   * consumer (a PowerShell tool, a remote executor) needs its own command
+   * grammar before it can be listed here.
+   */
+  tools?: string[]
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-unbounded-scan-guard -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-user-approval -->
 <a id="deepseek-aidsh-user-approval"></a>
