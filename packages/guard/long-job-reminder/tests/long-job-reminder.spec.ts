@@ -225,8 +225,8 @@ describe('long-job-reminder real Loader composition', () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-long-job-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
-      '- name: stub-jobs',
-      "- name: '@deepseek-ai/dsh-long-job-reminder'",
+      '- name: cordis:stub-jobs',
+      "- name: 'cordis:@deepseek-ai/dsh-long-job-reminder'",
       '  config:',
       '    remindAfterMs: 60000',
       '    maxListed: 3',
@@ -235,13 +235,8 @@ describe('long-job-reminder real Loader composition', () => {
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
     context.loader.builtins.include = Include
-    const internal = context.loader.internal
-    if (internal === undefined) throw new Error('expected the Loader to expose Node module loading')
-    internal.import = async (specifier: string) => {
-      if (specifier === 'stub-jobs') return stubJobs
-      if (specifier === '@deepseek-ai/dsh-long-job-reminder') return LongJobReminder
-      throw new Error(`unexpected Loader import: ${specifier}`)
-    }
+    context.loader.builtins['stub-jobs'] = stubJobs
+    context.loader.builtins['@deepseek-ai/dsh-long-job-reminder'] = LongJobReminder
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
 

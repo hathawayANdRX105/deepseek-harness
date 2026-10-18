@@ -301,9 +301,9 @@ describe('unbounded-scan-guard real Loader composition', () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-scan-guard-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
-      "- name: '@deepseek-ai/dsh-system-prompt'",
-      "- name: '@deepseek-ai/dsh-tools'",
-      "- name: '@deepseek-ai/dsh-unbounded-scan-guard'",
+      "- name: 'cordis:@deepseek-ai/dsh-system-prompt'",
+      "- name: 'cordis:@deepseek-ai/dsh-tools'",
+      "- name: 'cordis:@deepseek-ai/dsh-unbounded-scan-guard'",
       '  config:',
       '    heavyDirectories: [node_modules]',
       '',
@@ -314,14 +314,9 @@ describe('unbounded-scan-guard real Loader composition', () => {
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
     context.loader.builtins.include = Include
-    const internal = context.loader.internal
-    if (internal === undefined) throw new Error('expected the Loader to expose Node module loading')
-    internal.import = async (specifier: string) => {
-      if (specifier === '@deepseek-ai/dsh-system-prompt') return SystemPrompt
-      if (specifier === '@deepseek-ai/dsh-tools') return ToolRuntime
-      if (specifier === '@deepseek-ai/dsh-unbounded-scan-guard') return ScanGuard
-      throw new Error(`unexpected Loader import: ${specifier}`)
-    }
+    context.loader.builtins['@deepseek-ai/dsh-system-prompt'] = SystemPrompt
+    context.loader.builtins['@deepseek-ai/dsh-tools'] = ToolRuntime
+    context.loader.builtins['@deepseek-ai/dsh-unbounded-scan-guard'] = ScanGuard
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
 
