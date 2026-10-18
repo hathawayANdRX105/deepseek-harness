@@ -3,7 +3,7 @@
 import { SessionFormatError, isSessionFormatJsonObject } from '@deepseek-ai/dsh-session-format'
 import type { SessionFormatCodec, SessionFormatCurrentEncoder, SessionFormatHeader, SessionFormatEvent } from '@deepseek-ai/dsh-session-format'
 import { releasedV2SessionFormatCodec } from '@deepseek-ai/dsh-session-format-v2-to-v3'
-import { assertV4SourceRowAdmission } from './message-sources.ts'
+import { assertV4MessageSources, assertV4SourceRowAdmission } from './message-sources.ts'
 import { assertV4RetiredSyntax } from './retired-syntax.ts'
 import { assertV4SystemMessageFields } from './system-message.ts'
 import { assertV4DeveloperData } from './developer.ts'
@@ -18,7 +18,9 @@ function physicalV2(value: unknown): SessionFormatHeader {
 
 /**
  * V4 physical encoder and decoder retain the released row framing while
- * validating the native tool-role message directly.
+ * validating the native tool-role message directly. Encoding also requires
+ * producer-owned message sources, so the writer never persists a row the
+ * released reader refuses.
  */
 export const releasedV4SessionFormatCodec = Object.freeze({
   version: 4,
@@ -49,6 +51,7 @@ export const releasedV4SessionFormatCodec = Object.freeze({
       assertV4RetiredSyntax(event)
     }
     assertV4RowAdmission(event)
+    assertV4MessageSources(event)
     return releasedV2SessionFormatCodec.encodeEvent(event)
   },
 } satisfies SessionFormatCodec & SessionFormatCurrentEncoder)
