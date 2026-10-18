@@ -18,7 +18,7 @@ Status: implemented
 
 **长任务提醒。** [`packages/guard/long-job-reminder`](../../../../packages/guard/long-job-reminder/src/index.ts) 监听 `agent/pre-step`：当该 agent（智能体）拥有运行超过 `remindAfterMs`（默认 120000）的后台任务时，它在最前面注入一条已记录的通知，任务按时长从长到短排列，数量上限为 `maxListed`（默认 5）。该消息声明来源的 `kind` 为 `long-job-reminder`、`form` 为带 `summary` 的 `notice`，[上下文形态词汇](../feature/2026-08-05-context-form-vocabulary.zh.md) 定义了该形态；其文本点名 `job_output` 与 `job_kill` 作为结束该局面的操作。同一个后台任务只报告一次。
 
-**终止命令的前台截止时间。** 所有出厂的 `tool-bash` 与 `tool-pwsh` 配置项都设置 `config.promoteOnTimeout: false`，包括 base bundle 与三个 `web-app` preset。到达截止时间的前台命令会被终止并报告，而不再被分离；`promoteOnTimeout` 仍保留插件默认值 `true`，供希望保留晋升行为的组合使用。确实需要更长时间的工作通过 `run_in_background` 或更大的 `timeoutMs` 自行声明，参数描述说明了这一点。
+**终止命令的前台截止时间。** base bundle 中的每个 `tool-bash` 与 `tool-pwsh` 配置项都设置 `config.promoteOnTimeout: false`，因此 headless 与 CLI 配置文件会在前台命令到达截止时间时将其终止并报告失败。三个 `web-app` preset 保留 `promoteOnTimeout: true`——CI 表明其 e2e 套件固定了晋升任务 UX：归档对话框把前台调用列为必须停止的工作，人在环的 web 应用从侧边栏监督任务。确实需要更长时间的工作通过 `run_in_background` 或更大的 `timeoutMs` 自行声明，参数描述说明了这一点。
 
 **面向模型文本中的有界路径。** `bash` 与 `pwsh` 的工具描述点名 `grep` 工具以及无界递归搜索的代价——pwsh 描述还点名 `Select-String` 与 `Get-ChildItem -Recurse`——两种工具在晋升后的结果文本中都说明被分离的命令会持续占用 CPU 与磁盘，并指向有界搜索。
 

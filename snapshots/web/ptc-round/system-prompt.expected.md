@@ -74,7 +74,7 @@ interface ToolArgsMap {
     description: string;
     /** The bash command to execute. */
     command: string;
-    /** Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry; raise it, or use `run_in_background`, when the work legitimately needs longer. */
+    /** Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed. */
     timeoutMs?: number;
     /** Working directory for this command. Defaults to the session workspace; a relative path is resolved against it. */
     workdir?: string;
