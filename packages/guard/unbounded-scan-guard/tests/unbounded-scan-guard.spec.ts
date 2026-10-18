@@ -144,7 +144,7 @@ describe('scan spelling and root resolution', () => {
 
   it('resolves an explicit, a relative, and an absent workdir against their bases', () => {
     expect(resolveWorkdir('/abs/root', '/session')).toBe('/abs/root')
-    expect(resolveWorkdir('sub', '/session')).toBe(join('/session', 'sub'))
+    expect(resolveWorkdir('sub', '/session')).toBe(resolve('/session', 'sub'))
     expect(resolveWorkdir('sub', undefined)).toBe(join(process.cwd(), 'sub'))
     expect(resolveWorkdir(undefined, '/session')).toBe('/session')
     expect(resolveWorkdir('', '/session')).toBe('/session')
