@@ -144,7 +144,7 @@ describe('scan spelling and root resolution', () => {
 
   it('resolves an explicit, a relative, and an absent workdir against their bases', () => {
     expect(resolveWorkdir('/abs/root', '/session')).toBe('/abs/root')
-    expect(resolveWorkdir('sub', '/session')).toBe('/session/sub')
+    expect(resolveWorkdir('sub', '/session')).toBe(join('/session', 'sub'))
     expect(resolveWorkdir('sub', undefined)).toBe(join(process.cwd(), 'sub'))
     expect(resolveWorkdir(undefined, '/session')).toBe('/session')
     expect(resolveWorkdir('', '/session')).toBe('/session')
@@ -190,7 +190,7 @@ describe('policy decisions through the registry', () => {
   it('denies the same scan when it follows other commands in one compound call', async () => {
     const directory = await scanRoot(['target'])
     const { ran } = await harness()
-    const result = await bash(`cd ${directory} && echo "=== who ===" && grep -rn 'ci_scope' --include='*' .`, directory)
+    const result = await bash(`cd ${directory.replaceAll('\\', '/')} && echo "=== who ===" && grep -rn 'ci_scope' --include='*' .`, directory)
     expect(result.isError).toBe(true)
     expect(ran).toHaveLength(0)
   })
@@ -207,7 +207,7 @@ describe('policy decisions through the registry', () => {
     const directory = await scanRoot(['node_modules'])
     const elsewhere = await scanRoot([])
     const { ran } = await harness()
-    const result = await bash(`grep -rn x ${directory}`, elsewhere)
+    const result = await bash(`grep -rn x ${directory.replaceAll('\\', '/')}`, elsewhere)
     expect(result.isError).toBe(true)
     expect(ran).toHaveLength(0)
   })

@@ -79,7 +79,7 @@
           },
           "timeoutMs": {
             "type": "number",
-            "description": "Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed."
+            "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry; raise it, or use `run_in_background`, when the work legitimately needs longer."
           },
           "workdir": {
             "type": "string",
