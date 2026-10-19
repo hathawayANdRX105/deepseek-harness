@@ -256,6 +256,18 @@ button.crumb:hover {
   display: none;
 }
 
+/* One seat per retained Session of the main surface. The selected seat is
+   layout-neutral, so its Conversation root stays the flex child of the main
+   column; a parked seat leaves layout without unmounting its transcript, so
+   returning to that Session reuses its DOM and scroll memory. */
+.sessionSeat {
+  display: contents;
+}
+
+.sessionSeat[data-active='false'] {
+  display: none;
+}
+
 /* Width handles: 10px col-resize strips beside the transcript, absolute in
    .body (NOT the scrollport: an absolute strip there would extend the
    scrollable range; NOT .root: a strip from the column top would paint its

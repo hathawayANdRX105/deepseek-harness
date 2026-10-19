@@ -45,7 +45,7 @@ const FactoryViewsTestContext = createContext<ConversationViewsProps | undefined
 function StableConversationViews() {
   const props = useContext(FactoryViewsTestContext)
   if (props === undefined) throw new Error('Factory views test context is missing')
-  return <>{props.renderSlot('conversation.session', {})}</>
+  return <>{props.renderSlot('conversation.session', { sessionActive: true })}</>
 }
 
 // jsdom implements no Range geometry (Lexical's scroll-into-view measures the
@@ -239,6 +239,7 @@ function mount(
       return (
         <ConversationSession
           sessionId={SID}
+          sessionActive
           SessionProvider={({ children }) => children}
           useSession={useSession}
           useConversation={useConversation}
@@ -326,6 +327,7 @@ function mount(
   }) => {
     const common: ConversationViewsProps = {
       sessionId: SID,
+      sessionActive: true,
       SessionProvider,
       useSession,
       useConversation,
@@ -359,6 +361,7 @@ function mount(
   const runtimeProps: PropsRuntime<'main.conversation'> & Pick<ConversationSlotProps, 'SessionProvider'> = {
     usePanelInfo: selector => selector({ activePanelId: null }),
     sessionId,
+    sessionActive: true,
     SessionProvider,
     useSession: sessionId === undefined ? () => undefined : useSession,
     useConversation: sessionId === undefined ? () => undefined : useConversation,

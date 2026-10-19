@@ -418,6 +418,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
       />
       <ConversationSession
         {...standardProps}
+        sessionActive
         SessionProvider={({ children }) => children}
         useStore={bindSnapshotSelector(conversation)}
         actions={conversation.actions}

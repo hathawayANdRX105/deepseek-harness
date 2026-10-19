@@ -215,7 +215,7 @@ describe('Sidebar chat components', () => {
     } as unknown as Parameters<typeof ConversationSlotPanel>[0])} />)
     expect(renderFactorySlot).toHaveBeenCalledWith(
       'conversation.content',
-      { variant: 'embedded', ...expected },
+      { variant: 'embedded', sessionActive: true, ...expected },
       { slots: { views: FixedChatConversationView } },
     )
   })
@@ -223,6 +223,6 @@ describe('Sidebar chat components', () => {
   it('routes the fixed local view through the ordinary Conversation Session slot', () => {
     const renderSlot = vi.fn(() => null)
     render(<FixedChatConversationView {...({ renderSlot } as unknown as ConversationViewsProps)} />)
-    expect(renderSlot).toHaveBeenCalledWith('conversation.session', { view: 'chat' })
+    expect(renderSlot).toHaveBeenCalledWith('conversation.session', { view: 'chat', sessionActive: true })
   })
 })

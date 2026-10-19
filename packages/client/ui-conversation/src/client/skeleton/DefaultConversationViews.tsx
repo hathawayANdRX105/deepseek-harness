@@ -16,7 +16,7 @@ import css from './ConversationRoot.module.css'
  * target reads that flag to park its scroll policy while hidden.
  */
 export function DefaultConversationViews({
-  view, useSession, useConversation, useConversationViews, inputActions, useStore, actions,
+  view, sessionActive, useSession, useConversation, useConversationViews, inputActions, useStore, actions,
   renderSlot, bindDraftPersistence, openView, useInspectCall,
 }: ConversationSessionSlotProps) {
   const tabs = useConversationViews(value => value)
@@ -57,7 +57,10 @@ export function DefaultConversationViews({
       {retainedViews.map(id => (
         <div key={id} className={css.viewSeat} data-view={id} data-active={id === activeId}>
           {renderSlot('conversation.view', {
-            active: id === activeId,
+            // A View is active only while its Session seat is selected too: a
+            // parked Session seat leaves layout, so its Views must park their
+            // scroll policy with it.
+            active: id === activeId && sessionActive,
             inspectCall,
             viewRequest,
             openView,
