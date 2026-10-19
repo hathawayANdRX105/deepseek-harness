@@ -46,4 +46,5 @@ The warm returns no longer commit new content (`firstContent` is absent because 
 - Warm sidebar returns reuse the parked transcript instead of rebuilding it; the object layer keeps the same Sessions resident as before, plus their DOM.
 - A parked Session holds its transcript DOM, so a reader with several long Sessions open pays for that memory (measured: about 10 MB more heap for two retained 200-turn transcripts).
 - Browser tests that address conversation elements must scope them to the selected seat (`[data-session-seat][data-active="true"]`), because a parked seat keeps the same elements mounted.
+- Components that automatically open a Sidebar preview "when their Session is on screen" must compare the on-screen Session with their own `sessionId`, because a parked seat stays mounted while another Session is on screen (the plan-review opener needed this check).
 - The first Session of a session-less surface replaces the Hero tree; the assembly test now asserts that the Hero stays complete instead of that the same DOM node survives.
