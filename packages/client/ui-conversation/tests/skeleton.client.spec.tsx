@@ -658,6 +658,35 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.getByRole('tablist').hasAttribute('data-conversation-tabs')).toBe(true)
   })
 
+  it('keeps a visited View mounted and hides its seat while another View is active', () => {
+    const viewTabs: ViewTab[] = [
+      { id: 'chat', label: 'Chat' },
+      { id: 'trajectory', label: 'Trajectory' },
+    ]
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { viewTabs })
+    const chat = b.view.getByTestId('view-chat')
+    expect(chat.closest('[data-view="chat"]')?.getAttribute('data-active')).toBe('true')
+    // A View this Session never activated is not built at all.
+    expect(b.view.queryByTestId('view-trajectory')).toBeNull()
+
+    act(() => { b.store.actions.setView('trajectory') })
+
+    expect(b.view.getByTestId('view-trajectory').closest('[data-view="trajectory"]')?.getAttribute('data-active')).toBe('true')
+    // Returning to a visited View reuses its DOM instead of rebuilding it; the
+    // inactive seat carries the hiding seam its stylesheet reads.
+    expect(b.view.getByTestId('view-chat')).toBe(chat)
+    expect(b.view.getByTestId('view-chat').closest('[data-view="chat"]')?.getAttribute('data-active')).toBe('false')
+
+    act(() => { b.store.actions.setView('chat') })
+
+    expect(b.view.getByTestId('view-chat')).toBe(chat)
+    expect(b.view.getByTestId('view-chat').closest('[data-view="chat"]')?.getAttribute('data-active')).toBe('true')
+    // The trajectory seat stays mounted (not rebuilt) once visited; only its
+    // activity flag changes while Chat is active again, so repeated switching
+    // never rebuilds either transcript.
+    expect(b.view.getByTestId('view-trajectory').closest('[data-view="trajectory"]')?.getAttribute('data-active')).toBe('false')
+  })
+
   it('rolls the pending workspace label back when switching fails', async () => {
     const selectWorkspace = vi.fn(async () => { throw new Error('connect failed') })
     const b = mount(

@@ -70,6 +70,11 @@ export class ChatReading {
     this.sampled = null
   }
 
+  /** Stop pending sampling without publishing a new reading state. */
+  cancelSampling(): void {
+    this.cancelPending()
+  }
+
   /** Release bottom follow and pending sampling for an explicit navigation. */
   pauseFollowing(): void {
     this.cancelPending()

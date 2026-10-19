@@ -244,6 +244,18 @@ button.crumb:hover {
   min-height: 0;
 }
 
+/* One seat per visited View. The active seat is layout-neutral, so the View's
+   own root stays the flex child of .viewArea; an inactive seat leaves layout
+   without unmounting its View. The `data-active` attribute is the same seam a
+   retained target reads so Chat can park its scroll policy while hidden. */
+.viewSeat {
+  display: contents;
+}
+
+.viewSeat[data-active='false'] {
+  display: none;
+}
+
 /* Width handles: 10px col-resize strips beside the transcript, absolute in
    .body (NOT the scrollport: an absolute strip there would extend the
    scrollable range; NOT .root: a strip from the column top would paint its
@@ -325,8 +337,10 @@ button.crumb:hover {
 }
 
 /* Views that elect a composer overlay (trajectory etc.) own their full-bleed
-   scrollers; the strips would sit over their content and steal clicks. */
-.root:has([data-conversation-composer-overlay]) .widthHandle {
+   scrollers; the strips would sit over their content and steal clicks. An
+   inactive retained seat keeps its DOM but must not elect the overlay for the
+   active view, so only the active seat's marker participates. */
+.root:has(.viewSeat[data-active='true'] [data-conversation-composer-overlay]) .widthHandle {
   display: none;
 }
 
@@ -462,8 +476,10 @@ button.crumb:hover {
 }
 
 /* Views may opt into a composer overlay while ConversationRoot retains
-   ownership of the seat geometry and its active-phase precedence. */
-.scrollBody:has([data-conversation-composer-overlay]) {
+   ownership of the seat geometry and its active-phase precedence. Only the
+   active seat's marker counts: an inactive retained seat keeps its DOM but
+   its overlay marker must not collapse the active view's scrollport. */
+.scrollBody:has(.viewSeat[data-active='true'] [data-conversation-composer-overlay]) {
   position: relative;
   /* A clipping box nothing scrolls out of, stated as a scroll container on both
      axes rather than `overflow: hidden`: a single-axis scroller computes the
@@ -479,13 +495,13 @@ button.crumb:hover {
   scrollbar-gutter: auto;
 }
 
-.scrollBody:has([data-conversation-composer-overlay]) > :global([data-slot='conversation.session']) > .viewArea {
+.scrollBody:has(.viewSeat[data-active='true'] [data-conversation-composer-overlay]) > :global([data-slot='conversation.session']) > .viewArea {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
 }
 
-.scrollBody:has([data-conversation-composer-overlay]) > .composerSeat {
+.scrollBody:has(.viewSeat[data-active='true'] [data-conversation-composer-overlay]) > .composerSeat {
   position: absolute;
   /* Chat's seat rides this box's content box, which its own scrolling shortens
      by the bar's width; the overlay seat is against the padding box, so it

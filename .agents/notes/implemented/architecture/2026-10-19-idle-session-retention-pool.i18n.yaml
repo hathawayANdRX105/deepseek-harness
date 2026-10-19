@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-19-idle-session-retention-pool.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-19-idle-session-retention-pool.md
+/agent-note-idle-session-retention-pool:
+  en: 7f500c5fb0dd4aab
+  zh: 7b4ae500f02c8afd
+/agent-note-idle-session-retention-pool/problem:
+  en: fe4f5ce2cfaedfe0
+  zh: cb6b78aec2a9a382
+/agent-note-idle-session-retention-pool/decision:
+  en: 6bad1a3cf799c15b
+  zh: 596ad4176c61a087
+/agent-note-idle-session-retention-pool/measurements:
+  en: 58caca66c0536191
+  zh: cd7c198c7b287199
+/agent-note-idle-session-retention-pool/alternatives-considered:
+  en: 87fc5ae8eb6514f5
+  zh: 63693b26bee522db
+/agent-note-idle-session-retention-pool/consequences:
+  en: d0046946dd1d12e0
+  zh: 35d4f6b600885a0a

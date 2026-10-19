@@ -239,6 +239,7 @@ function standaloneProps(
     useInput: bindSnapshotSelector(input),
     inputActions,
     useProjection,
+    active: true,
     inspectCall: undefined,
     viewRequest: null,
     openView: () => {},
@@ -393,7 +394,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
         }
       })()
       : injected
-    const viewProps: ConvViewProps = { ...owner, ...standardProps }
+    const viewProps: ConvViewProps = { active: true, ...owner, ...standardProps }
     return (
       <View
         {...viewProps}
@@ -530,9 +531,17 @@ describe('tab switching in ConversationRoot', () => {
     expect(view.container.querySelector('[data-collapsed-summary="turn"]')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '展开所有轮次' }))
     expect(screen.getByRole('row', { name: /用户/ })).toBeTruthy()
-    expect(screen.queryByTestId('chat-body')).toBeNull()
+    // The Chat view this Session already activated keeps its transcript mounted:
+    // returning to it reuses the DOM instead of rebuilding it, so only the
+    // seat's activity flag changes while Trajectory is active. The seat is the
+    // visibility seam: `data-active` drives the shell CSS that hides it while
+    // the transcript testid remains present inside the hidden seat.
+    const chatSeat = view.container.querySelector('[data-view="chat"]')
+    expect(chatSeat?.getAttribute('data-active')).toBe('false')
+    expect(chatSeat?.contains(screen.getByTestId('chat-body'))).toBe(true)
     expect(b.loadOlder).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('tab', { name: 'Chat' }))
+    expect(view.container.querySelector('[data-view="chat"]')?.getAttribute('data-active')).toBe('true')
     expect(b.loadOlder).not.toHaveBeenCalled()
   })
 

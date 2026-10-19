@@ -36,6 +36,7 @@ function ScrollHarness({ input, onMotion }: {
 
 function mountScroll(deferCompletedTurns = true, initial: Partial<ChatScrollInput> = {}) {
   let input: ChatScrollInput = {
+    active: true,
     ready: true,
     order: [],
     firstSeq: null,

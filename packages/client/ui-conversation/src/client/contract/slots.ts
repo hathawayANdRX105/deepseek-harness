@@ -312,6 +312,12 @@ export interface InputZone {
 
 /** Conversation View entries obtain their data from registered standard hooks. */
 export interface ConvViewOwnerProps {
+  /**
+   * Whether this seat is the Session's active View. An inactive seat stays
+   * mounted but out of layout, so a View must not land, measure, or sample
+   * scrolling while inactive and re-establishes its position when activated.
+   */
+  active: boolean
   /** Open a tool call's inspector when an inspection target is available. */
   inspectCall: ((callId: string) => void) | undefined
   /** Focus request addressed to the selected View. */
