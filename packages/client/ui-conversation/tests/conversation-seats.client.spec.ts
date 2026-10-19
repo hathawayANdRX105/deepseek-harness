@@ -35,8 +35,8 @@ it('retains one reference per visited Session and marks the selected one', async
 
   seats.select(B)
   const second = seats.snapshot()
-  expect(second.map(seat => seat.sessionId)).toEqual([A, B])
-  expect(second.map(seat => seat.selected)).toEqual([false, true])
+  expect(second.map(seat => seat.sessionId)).toEqual([B, A])
+  expect(second.map(seat => seat.selected)).toEqual([true, false])
   seats.dispose()
 })
 
@@ -60,10 +60,10 @@ it('evicts the oldest parked Session beyond the cap', async () => {
   seats.select(B)
   seats.select(C)
   // Two parked Sessions fit the cap; the third one evicts the oldest.
-  expect(seats.snapshot().map(seat => seat.sessionId)).toEqual([A, B, C])
+  expect(seats.snapshot().map(seat => seat.sessionId)).toEqual([C, A, B])
   expect(release).not.toHaveBeenCalled()
   seats.select(D)
-  expect(seats.snapshot().map(seat => seat.sessionId)).toEqual([B, C, D])
+  expect(seats.snapshot().map(seat => seat.sessionId)).toEqual([D, B, C])
   expect(release).toHaveBeenCalledOnce()
   seats.dispose()
 })

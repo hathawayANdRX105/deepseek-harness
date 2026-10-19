@@ -189,5 +189,8 @@ export class ConversationSeats {
         selected: seat.sessionId === selected,
         mount: seat.mount,
       }))
+      // The selected seat comes first: a reader (and the browser tests) meet
+      // the live conversation before the parked ones in DOM order.
+      .sort((left, right) => Number(right.selected) - Number(left.selected))
   }
 }
