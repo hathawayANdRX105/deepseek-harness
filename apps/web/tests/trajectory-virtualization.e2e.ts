@@ -338,7 +338,9 @@ describe('web e2e: Trajectory virtualization over tail-paged history', () => {
       await input.fill('Stream one deterministic response while Trajectory remains visible.')
       await input.press('Enter')
       await settled
-      await page.getByText('stream fragment 01', { exact: false }).waitFor({ timeout: 30_000 })
+      await page.locator('[data-view="trajectory"]')
+        .getByText('stream fragment 01', { exact: false })
+        .waitFor({ timeout: 30_000 })
       await nextPaint(page)
       const streamingScrollCalls = await trajectoryScroll.evaluate(() => {
         return (window as Window & { __trajectoryScrollCalls?: number })
