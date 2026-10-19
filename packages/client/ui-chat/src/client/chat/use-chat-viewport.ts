@@ -347,6 +347,8 @@ export class ChatViewport {
    * @returns the actual landing, or null while detached.
    */
   restore(position: ChatScrollPosition): ViewportLanding | null {
+    // Aligning the retained anchor row preserves the reader's exact offset;
+    // the raw scrollTop fallback only applies when the row is not mounted.
     const row = this.anchor(position.anchorKey)
     if (row !== null) return this.align(row, position.anchorTop, null)
     const metrics = this.metrics()

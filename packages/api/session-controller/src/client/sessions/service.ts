@@ -151,6 +151,15 @@ function freezeRetainedBy(counts: Partial<Record<SessionReferenceSource, number>
 
 const EMPTY_RETAIN_INFO: SessionRetainInfo = Object.freeze({ referenceCount: 0, retainedBy: freezeRetainedBy({}) })
 
+/**
+ * How many released-but-resident Sessions the Controller keeps idle for cheap
+ * warm returns. A bounded idle pool bounds the live object-layer cost of
+ * session switching (event streams and projection caches stay resident for
+ * the idle entries, so an unbounded pool would keep every visited Session
+ * warm forever). The currently selected Session is never part of this pool.
+ */
+const MAX_IDLE_SESSIONS = 2
+
 interface ScopeRecord {
   fiber: Fiber
   ctx: AgentContext
@@ -244,6 +253,20 @@ export class ClientSessions implements ISessions {
   /** The object-layer instance cluster and frame dispatch entry. */
   private readonly manager: SessionManager
   private readonly scopes = new Map<SessionId, ScopeRecord>()
+  /**
+   * Released Sessions whose old scope generation has fully torn down, kept
+   * resident with their opened window for a cheap warm return. A later retain
+   * reuses the instance (creating a fresh scope) without re-fetching or
+   * re-folding history. Bounded by {@link MAX_IDLE_SESSIONS}.
+   */
+  private readonly idleSessions = new Map<SessionId, Session>()
+  /**
+   * Sessions between reference release and old-generation teardown. A retain
+   * during this window takes the cold path (fresh instance), matching the
+   * established replacement semantics; once teardown settles, the Session
+   * either joins {@link idleSessions} or is dropped with the Controller.
+   */
+  private readonly pendingIdle = new Set<SessionId>()
   /** Stable per-id sources retained for the Client root lifetime, including across generation replacement. */
   private readonly retainObservers = new Map<SessionId, RetentionObserver>()
   private readonly scopeDrops = new Set<Promise<void>>()
@@ -266,7 +289,10 @@ export class ClientSessions implements ISessions {
       this.closed = true
       disposeManagerProjection()
       const scopes = [...this.scopes]
+      const idle = [...this.idleSessions]
       this.scopes.clear()
+      this.idleSessions.clear()
+      this.pendingIdle.clear()
       for (const [, record] of scopes) {
         record.live = false
         record.session.unbindScope()
@@ -275,6 +301,9 @@ export class ClientSessions implements ISessions {
       for (const [id, record] of scopes) {
         this.startScopeDrop(id, record)
         this.publishRetention(id)
+      }
+      for (const [id, session] of idle) {
+        void this.manager.drop(id, session)
       }
       await this.drainScopeDrops()
       await managerDisposal
@@ -578,7 +607,99 @@ export class ClientSessions implements ISessions {
     notifySubscribers(observer.listeners, '[session-controller] reference sources')
   }
 
+  /**
+   * Release one scope generation. A plain reference release tears down the
+   * scope fiber and parks the resident Session in the bounded idle pool once
+   * teardown settles, so a later warm return reuses its opened window; only a
+   * fiber-teardown path that owns the record (controller shutdown, explicit
+   * generation replacement) destroys the instance immediately.
+   * @param id - identity of the released Session.
+   * @param record - the scope generation being released.
+   * @param disposeFiber - whether this call owns fiber teardown. `true` is a
+   *   reference-count release (idle parking after teardown); `false` is
+   *   scope-fiber destruction and forces the real drop.
+   */
   private retireScope(id: SessionId, record: ScopeRecord, disposeFiber = true): void {
+    if (!record.live) return
+    if (disposeFiber) {
+      // A Session no longer listed by the Host cannot be warm-returned through
+      // the UI, so keeping its observe stream resident would only leak it.
+      // Removed scopes drop for real; listed Sessions enter the idle pool.
+      const listed = this.manager.getListSnapshot().items.some(item => item.sessionId === id)
+      if (!listed) {
+        this.destroyScope(id, record, true)
+        return
+      }
+      this.releaseToIdle(id, record)
+      return
+    }
+    this.destroyScope(id, record, false)
+  }
+
+  /**
+   * Withdraw a released scope and schedule its Session for the idle pool.
+   * The old fiber must fully tear down before the Session becomes reusable:
+   * a retain during teardown takes the established cold-replacement path
+   * (fresh instance), while a retain after teardown reuses the opened window.
+   * @param id - identity of the released Session.
+   * @param record - the scope generation being released.
+   */
+  private releaseToIdle(id: SessionId, record: ScopeRecord): void {
+    record.live = false
+    if (this.scopes.get(id) === record) this.scopes.delete(id)
+    record.session.unbindScope()
+    // Mark the pending window before publishing the count change: an observer
+    // that retains on the zero-count notification must take the cold path.
+    this.pendingIdle.add(id)
+    this.projectList()
+    this.publishRetention(id)
+    const session = record.session
+    void record.fiber.dispose().then(
+      () => { this.settleIdle(id, session) },
+      () => { this.settleIdle(id, session) },
+    )
+  }
+
+  /**
+   * Settle one released Session after its old scope fiber has torn down.
+   * If a retain already claimed the cold path, the pending marker is gone and
+   * nothing happens; otherwise the Session joins the bounded idle pool (or is
+   * dropped when the Controller is already closed).
+   * @param id - identity of the released Session.
+   * @param session - its resident instance.
+   */
+  private settleIdle(id: SessionId, session: Session): void {
+    if (!this.pendingIdle.delete(id)) return
+    if (this.closed) {
+      void this.manager.drop(id, session)
+      return
+    }
+    this.idleSessions.set(id, session)
+    this.evictIdleIfNeeded()
+  }
+
+  /** Evict the oldest idle Sessions until the pool fits {@link MAX_IDLE_SESSIONS}. */
+  private evictIdleIfNeeded(): void {
+    while (this.idleSessions.size > MAX_IDLE_SESSIONS) {
+      const oldestId = this.idleSessions.keys().next().value
+      if (oldestId === undefined) return
+      const oldest = this.idleSessions.get(oldestId)
+      if (oldest === undefined) return
+      this.idleSessions.delete(oldestId)
+      void this.manager.drop(oldestId, oldest)
+    }
+  }
+
+  /**
+   * Destroy one resident Session for real: withdraw the instance, unbind the
+   * scope, and drop both the Session and (when owned) its fiber. Idempotent —
+   * the fiber-teardown effect re-enters through {@link retireScope} with the
+   * record already non-live.
+   * @param id - identity of the Session being destroyed.
+   * @param record - its scope generation.
+   * @param disposeFiber - whether this call owns fiber teardown.
+   */
+  private destroyScope(id: SessionId, record: ScopeRecord, disposeFiber: boolean): void {
     if (!record.live) return
     record.live = false
     if (this.scopes.get(id) === record) this.scopes.delete(id)
@@ -591,8 +712,30 @@ export class ClientSessions implements ISessions {
 
   /** Materialize one scope after its caller establishes that the id may be addressed. */
   private materializeScope(id: SessionId): ScopeRecord {
+    // A warm return reuses the resident instance whose old generation has
+    // fully torn down: the opened window survives, so no history fetch or
+    // fold reruns. A fresh scope generation binds the same Session.
+    const idleSession = this.idleSessions.get(id)
+    if (idleSession !== undefined) {
+      this.idleSessions.delete(id)
+      return this.createScopeRecord(id, idleSession)
+    }
+    // A released Session whose old fiber is still tearing down must not be
+    // reused: the caller takes the cold-replacement path, so withdraw the
+    // pending marker and drop the stale instance before minting a fresh one.
+    if (this.pendingIdle.has(id)) {
+      this.pendingIdle.delete(id)
+      const stale = this.manager.get(id)
+      if (this.scopes.get(id) === undefined) {
+        void this.manager.drop(id, stale)
+      }
+    }
+    return this.createScopeRecord(id, this.manager.get(id))
+  }
+
+  /** Mint a fresh scope generation over an existing resident Session instance. */
+  private createScopeRecord(id: SessionId, session: Session): ScopeRecord {
     const { fiber, ctx } = createScope(this.rootCtx, id)
-    const session = this.manager.get(id)
     // The Session owns its scoped dispatch point (host Agent.loopCtx mirror);
     // mint and bind are one step so a live scope record implies a bound actx.
     session.bindScope(ctx)

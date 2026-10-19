@@ -58,7 +58,7 @@ const MOTION_TAIL_MS = 800
  * ordered business Node crosses the keyed renderer seat.
  */
 export function ChatView({
-  useSession, useChat, useConversation, useSessions, renderSlot,
+  useSession, useChat, useConversation, useSessions, renderSlot, active,
   sessionId, openFile, openSkill, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions,
   usePresentation, useProjection, t,
 }: ChatViewSlotProps) {
@@ -184,6 +184,7 @@ export function ChatView({
   const steeringId = latestSteering?.source.kind === 'user' && 'rpcId' in latestSteering.source
     ? latestSteering.source.rpcId : latestSteering?.id ?? null
   const scroll = useChatScroll({
+    active,
     ready: openState === 'open',
     order, firstSeq, lastKey, running, loadingOlder, hasMore, chatScroll, loadOlder, loadThrough, deferCompletedTurns,
     lastIsUser: lastKey !== null && nodeStore.get(lastKey)?.kind === 'user',

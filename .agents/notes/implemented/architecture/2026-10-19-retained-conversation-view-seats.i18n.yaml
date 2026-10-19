@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-19-retained-conversation-view-seats.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-19-retained-conversation-view-seats.md
+/agent-note-retained-conversation-view-seats:
+  en: 396582c165f8f471
+  zh: d8a109b8cdff6919
+/agent-note-retained-conversation-view-seats/problem:
+  en: 97ead7e1a117c0af
+  zh: 2b44f19055c68d4d
+/agent-note-retained-conversation-view-seats/decision:
+  en: 0c9c828d9de927ab
+  zh: 22c4b0e3a9ecff73
+/agent-note-retained-conversation-view-seats/measurements:
+  en: c1517eadf48d0bfe
+  zh: c4110734ce31e1d5
+/agent-note-retained-conversation-view-seats/alternatives-considered:
+  en: 39db8af4d6197d2b
+  zh: 17bbf0e8983be0ba
+/agent-note-retained-conversation-view-seats/consequences:
+  en: 0c90bdcc04ccd8a7
+  zh: a7cdaa33484c9351

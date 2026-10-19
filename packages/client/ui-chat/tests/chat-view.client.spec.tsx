@@ -482,6 +482,7 @@ function makeHarness(
     // The fixture implements the concrete flow dispatch behind the generic slot signature.
     renderSlot: renderSlot as ChatViewSlotProps['renderSlot'],
     SessionProvider: SessionProviderStub,
+    active: true,
     inspectCall: (callId: string) => { openView('trajectory', callId) },
     viewRequest: null,
     openView,
@@ -4147,6 +4148,51 @@ describe('ChatView', () => {
       host.scrollTop = 0
       view.rerender(<h.ChatView {...h.props} />)
       expect(host.scrollTop).toBe(1_500)
+    } finally {
+      rect.mockRestore()
+      host.remove()
+    }
+  })
+
+  it('parks an inactive seat and lands from scroll memory when it becomes active again', () => {
+    // Parking mirrors a remount: while its seat is hidden, the transcript
+    // neither samples collapsed geometry nor touches the scroll store; on
+    // activation it consumes the stored position and lands on it again.
+    const host = document.createElement('div')
+    host.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(host, 'scrollHeight', { value: 2_000, writable: true, configurable: true })
+    Object.defineProperty(host, 'clientHeight', { value: 500, writable: true, configurable: true })
+    let scrollTop = 0
+    Object.defineProperty(host, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => { scrollTop = Math.min(value, 1_500) },
+    })
+    document.body.appendChild(host)
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.dataset.chatAnchorKey === 'fixture:user:1') {
+        const top = 1_700 - host.scrollTop
+        return { top, bottom: top + 40 } as DOMRect
+      }
+      return { top: 0, bottom: 500 } as DOMRect
+    })
+    try {
+      const h = makeHarness({ nodes: [user(1, 'q'), assistant(2, 'a')] })
+      const view = render(<h.ChatView {...h.props} />, { container: host })
+
+      view.rerender(<h.ChatView {...h.props} active={false} />)
+      // The settled reader position sampling left before the seat was hidden.
+      h.chatScroll.save({ anchorKey: 'fixture:user:1', anchorTop: 80, scrollTop: 1_400 })
+      scrollTop = 0
+      fireEvent.scroll(host)
+      // A parked seat neither samples the collapsed scrollport nor rewrites
+      // the position the reader left behind.
+      expect(h.chatScroll.read()).toEqual({ anchorKey: 'fixture:user:1', anchorTop: 80, scrollTop: 1_400 })
+
+      view.rerender(<h.ChatView {...h.props} />)
+      // Activation consumes that memory and moves the retained transcript.
+      expect(h.chatScroll.read()).toBeNull()
+      expect(scrollTop).toBe(1_500)
     } finally {
       rect.mockRestore()
       host.remove()

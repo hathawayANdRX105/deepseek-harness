@@ -322,3 +322,69 @@ describe('ClientSessions.using', () => {
     expect(b.svc.binding(ID)).toBeUndefined()
   })
 })
+
+describe('ClientSessions idle retention', () => {
+  it('reuses the resident opened Session on a warm return after teardown settles', async ({ mock, start }) => {
+    const client = await start()
+    const ctx = new Context()
+    const svc = new ClientSessions(ctx, client.ctx.remote)
+    onTestFinished(async () => { await ctx.fiber.dispose() })
+    mock.stream(FOLLOW, followScript(EMPTY_HISTORY))
+    mock.remote.session.list.mockResolvedValue(ok({
+      items: [{ sessionId: ID, updatedAt: 1, running: false, blank: true, agentAvailable: true }],
+    }))
+    await svc.refresh()
+    const first = svc.retain(ID, { source: viewSource })
+    await first.ready
+    const opened = first.binding.session
+    first.release()
+    expect(svc.binding(ID)).toBeUndefined()
+    expect(svc.retainInfo(ID).getSnapshot()).toEqual({ referenceCount: 0, retainedBy: {} })
+    // The old scope generation must fully tear down before the instance is
+    // reusable; a retain after that reuses the opened window without a new
+    // history request.
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const second = svc.retain(ID, { source: workSource })
+    await second.ready
+    expect(second.binding.session).toBe(opened)
+    expect(opened.getSnapshot().openState).toBe('open')
+    expect(mock.log.requests(FOLLOW)).toHaveLength(1)
+    second.release()
+  })
+
+  it('keeps a bounded idle pool and evicts the oldest released Session', async ({ mock, start }) => {
+    const client = await start()
+    const ctx = new Context()
+    const svc = new ClientSessions(ctx, client.ctx.remote)
+    onTestFinished(async () => { await ctx.fiber.dispose() })
+    const ids = [SessionId('idle-a'), SessionId('idle-b'), SessionId('idle-c')]
+    mock.stream(FOLLOW, followScript(EMPTY_HISTORY))
+    mock.remote.session.list.mockResolvedValue(ok({
+      items: ids.map((sessionId, index) => ({
+        sessionId, updatedAt: index + 1, running: false, blank: true, agentAvailable: true,
+      })),
+    }))
+    await svc.refresh()
+    const opened = new Map<SessionId, object>()
+    for (const id of ids) {
+      const reference = svc.retain(id, { source: workSource })
+      await reference.ready
+      opened.set(id, reference.binding.session)
+      reference.release()
+    }
+    await new Promise(resolve => setTimeout(resolve, 100))
+    // The pool holds the two newest released Sessions; the oldest was evicted
+    // for real, so re-acquiring it builds a fresh instance, while the other
+    // two warm-return with their original resident instances.
+    const oldest = svc.retain(ids[0]!, { source: viewSource })
+    await oldest.ready
+    expect(oldest.binding.session).not.toBe(opened.get(ids[0]!))
+    oldest.release()
+    for (const id of ids.slice(1)) {
+      const warm = svc.retain(id, { source: viewSource })
+      await warm.ready
+      expect(warm.binding.session).toBe(opened.get(id))
+      warm.release()
+    }
+  })
+})

@@ -18,6 +18,8 @@ export interface ChatScrollInput extends ChatNavigationInput {
   readonly steeringId: string | null
   readonly submissionId: string | null
   readonly running: boolean
+  /** Whether this Chat seat is the Session's active View (see `ConvViewOwnerProps.active`). */
+  readonly active: boolean
   /** Enable the browser-local delayed-fold experiment and its input reveal animation. */
   readonly deferCompletedTurns: boolean
   /** A changed work-details preference resets fold reservations after the layout settles. */
@@ -45,7 +47,7 @@ interface ChatScrollState extends ChatReadingState {
 export function useChatScroll(input: ChatScrollInput): ChatScrollState {
   const {
     ready, order, firstSeq, lastKey, lastIsUser, steeringId, submissionId, running, deferCompletedTurns,
-    loadedTurns, chatScroll, hasMore, loadingOlder, loadOlder, loadThrough, transcriptView,
+    loadedTurns, chatScroll, hasMore, loadingOlder, loadOlder, loadThrough, transcriptView, active,
   } = input
   const { viewport, listRef, columnRef } = useChatViewport()
   const { reading, state } = useChatReading(viewport, chatScroll, loadedTurns.at(-1)?.turn ?? null)
@@ -82,6 +84,12 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
 
   const processContent = useCallback(() => {
     const current = content.current.input
+    // An inactive seat stays mounted with the transcript out of layout: its
+    // scrollport geometry is collapsed, so landing or sampling here would
+    // overwrite the Session's scroll memory with a clamped position. The
+    // deactivation effect below clears `opened`, which makes activation take
+    // the first-open landing branch.
+    if (!current.active) return
     if (!current.ready && !content.current.opened) return
     const previous = content.current.applied
     const ownInput = (current.lastIsUser && current.lastKey !== previous?.lastKey)
@@ -127,11 +135,21 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
         reading.onScroll(event)
       },
       scrollEnd: (outer) => {
+        // A hidden seat's scrollport clamps to zero, then fires scrollend:
+        // flushing a sample there would overwrite the reader's stored position.
+        if (!content.current.opened) return
         reading.onScrollEnd(outer)
         navigation.readerSettled()
       },
-      interact: () => { navigation.cancel() },
-      intent: () => { cancelPendingFollow(); reading.interruptFollow() },
+      interact: () => {
+        if (!content.current.opened) return
+        navigation.cancel()
+      },
+      intent: () => {
+        if (!content.current.opened) return
+        cancelPendingFollow()
+        reading.interruptFollow()
+      },
       resize: () => {
         if (!content.current.opened) return
         if (navigation.contentCommitted()) {
@@ -161,8 +179,21 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
     const previous = content.current.input
     content.current.input = {
       ready, order, lastKey, lastIsUser, steeringId, submissionId, running, loadedTurns, chatScroll,
-      deferCompletedTurns, transcriptView, ...navigationInput,
+      deferCompletedTurns, transcriptView, active, ...navigationInput,
     }
+    // An inactive seat keeps its DOM out of layout. Stop sampling the collapsed
+    // scrollport and clear `opened`, so stored scroll memory survives and the
+    // next activation lands the way a freshly mounted Chat does.
+    if (!active) {
+      clearPendingFollow()
+      reading.interruptFollow()
+      reading.cancelSampling()
+      content.current.opened = false
+      return
+    }
+    // Revealing the retained transcript moves every row without a new order
+    // or window: cached landings describe the collapsed layout.
+    if (!previous.active) viewport.invalidate()
     if (!deferCompletedTurns) {
       cancelPendingFollow()
       reading.interruptFollow()
@@ -174,8 +205,9 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
     processContent()
     if (layoutChanged && content.current.opened) reading.refreshActiveTurn()
   }, [
-    viewport, reading, processContent, navigationInput, ready, order, lastKey, lastIsUser,
-    steeringId, submissionId, running, loadedTurns, chatScroll, deferCompletedTurns, transcriptView, cancelPendingFollow,
+    viewport, reading, processContent, navigationInput, ready, order, lastKey, lastIsUser, active,
+    steeringId, submissionId, running, loadedTurns, chatScroll, deferCompletedTurns, transcriptView,
+    cancelPendingFollow, clearPendingFollow,
   ])
 
   const previousView = useRef(transcriptView)
