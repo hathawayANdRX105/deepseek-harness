@@ -616,7 +616,6 @@
      is a lighter bluish step than the column's `bg-base`, which tinted the
      whole scrim away from the content beneath it. */
   background: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent);
-  backdrop-filter: blur(6px);
   animation: dockScrimIn 140ms ease-out;
 }
 

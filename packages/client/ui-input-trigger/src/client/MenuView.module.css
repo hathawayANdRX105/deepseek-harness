@@ -37,7 +37,7 @@
   bottom: 4px;
   left: 4px;
   height: 16px;
-  background: linear-gradient(to bottom, transparent, var(--dsw-specific-menu));
+  background: var(--dsw-specific-menu);
   pointer-events: none;
 }
 

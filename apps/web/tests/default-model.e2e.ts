@@ -271,7 +271,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
           await scroller.evaluate((node) => { node.scrollTop = 10 })
           await expect.poll(readPinned).toEqual([true, false, false])
           expect(await headings.first().evaluate(node => getComputedStyle(node).backgroundColor))
-            .toBe(dark ? 'rgba(48, 49, 54, 0.94)' : 'rgba(248, 249, 250, 0.94)')
+            .toBe(dark ? 'rgb(48, 49, 54)' : 'rgb(248, 249, 250)')
           await scroller.evaluate((node, top) => { node.scrollTop = top }, secondTop)
           await expect.poll(readPinned).toEqual([false, true, false])
           await scroller.evaluate((node) => { node.scrollTop = 10 })
@@ -406,7 +406,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     for (const palette of headingPalettes) {
       expect(palette.headingFills, `${palette.platform}, dark=${String(palette.dark)}`)
         .toEqual(['rgba(0, 0, 0, 0)'])
-      expect(palette.menuFill).toBe(palette.dark ? 'rgba(67, 69, 74, 0.45)' : 'rgba(248, 249, 250, 0.58)')
+      expect(palette.menuFill).toBe(palette.dark ? 'rgb(67, 69, 74)' : 'rgb(248, 249, 250)')
       expect(palette.searchBorder).toBe('rgba(0, 0, 0, 0)')
       expect(palette.positions).toEqual(['sticky'])
       expect(palette.headingRadii).toEqual([palette.platform === 'darwin' ? '0px' : palette.optionRadius])

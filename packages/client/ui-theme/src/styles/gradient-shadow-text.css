@@ -15,9 +15,9 @@ body {
      模糊、更低透明度的柔光。默认色只声明在 body 上，让表面的重绑沿继承
      传给真正消费投影的后代。 */
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l4);
-  /* Blocking masks dim the page; menu backgrounds retain their blur. */
+  /* Blocking masks dim the page; menu backgrounds stay opaque. */
   --dsw-mask-blur: none;
-  --dsw-menu-backdrop-filter: blur(40px) saturate(150%);
+  --dsw-menu-backdrop-filter: none;
 }
 
 body[data-ds-dark-theme] [data-menu-material] {
