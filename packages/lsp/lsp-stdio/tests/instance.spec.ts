@@ -281,6 +281,25 @@ describe('LspInstance query and abort', () => {
     await expect(run(instance, 'goToDefinition', controller.signal)).rejects.toThrow(/server refused/)
   })
 
+  it('retries transient "still being resolved" responses until the server index is ready', async () => {
+    // rust-glancer answers queries before its analysis route resolves; the instance must retry the
+    // transient open/query/close lifecycle instead of surfacing the first response as a failure.
+    const script = 'let b=Buffer.alloc(0),defCount=0;'
+      + 'const fr=(o)=>{const x=Buffer.from(JSON.stringify({jsonrpc:"2.0",...o}));return Buffer.concat([Buffer.from(`Content-Length: ${x.length}\\r\\n\\r\\n`),x]);};'
+      + 'process.stdin.on("data",c=>{b=Buffer.concat([b,c]);for(;;){const s=b.indexOf("\\r\\n\\r\\n");if(s<0)break;const len=Number(/(\\d+)/.exec(b.toString("ascii",0,s))[1]);if(b.length<s+4+len)break;const m=JSON.parse(b.toString("utf8",s+4,s+4+len));b=b.subarray(s+4+len);'
+      + 'if(m.method==="initialize")process.stdout.write(fr({id:m.id,result:{capabilities:{positionEncoding:"utf-16",textDocumentSync:1,definitionProvider:true}}}));'
+      + 'else if(m.method==="textDocument/definition"){defCount++;if(defCount<=2)process.stdout.write(fr({id:m.id,error:{code:-32801,message:"the document analysis route is still being resolved"}}));else process.stdout.write(fr({id:m.id,result:null}));}'
+      + 'else if(m.method==="shutdown")process.stdout.write(fr({id:m.id,result:null}));'
+      + 'else if(m.method==="exit")process.exit(0);'
+      + '}});'
+    const instance = scriptInstance(script)
+    await expect(run(instance, 'goToDefinition')).resolves.toEqual({
+      kind: 'locations',
+      locations: [],
+      resolvedWorkspaceUri: pathToFileURL(ws).href,
+    })
+  })
+
   it('keeps a settled result but awaits teardown when didClose cannot be written', async () => {
     const instance = makeInstance({
       LSP_FAKE_DEF: 'null',
