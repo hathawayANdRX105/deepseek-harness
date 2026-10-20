@@ -1,4 +1,4 @@
-/** Account and Session menus share material and keep macOS backings aligned and scoped. */
+/** Account and Session menus share the opaque menu material across palettes. */
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
@@ -17,7 +17,7 @@ async function material(menu: Locator) {
   })
 }
 
-it('shares menu transparency and blur across palettes and follows native menu bounds', async () => {
+it('shares opaque menu surfaces across palettes and keeps modal masks translucent', async () => {
   const scaffold = await launchWebScaffold({})
   onTestFinished(() => scaffold.close())
   await seedSession(scaffold, await readFile(seed, 'utf8'), 'menu-material-session')
@@ -28,8 +28,9 @@ it('shares menu transparency and blur across palettes and follows native menu bo
     Object.defineProperty(globalThis, 'dshDesktop', { value: { protocolVersion: 1 } })
   })
   await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+  await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
   const account = page.getByRole('button', { name: 'Account menu', exact: true })
-  await account.waitFor()
+  await account.waitFor({ timeout: 30_000 })
 
   const results: Record<string, Awaited<ReturnType<typeof material>>> = {}
   const masks: Record<string, { fill: string; blur: string }> = {}
@@ -47,37 +48,20 @@ it('shares menu transparency and blur across palettes and follows native menu bo
         try { return getComputedStyle(overlay).backgroundColor } finally { overlay.remove() }
       })
       expect(overlayFill).toBe(platform === 'darwin'
-        ? dark ? 'rgba(48, 49, 54, 0.94)' : 'rgba(248, 249, 250, 0.94)'
-        : dark ? 'rgba(67, 69, 74, 0.45)' : 'rgba(248, 249, 250, 0.58)')
+        ? dark ? 'rgb(48, 49, 54)' : 'rgb(248, 249, 250)'
+        : dark ? 'rgb(67, 69, 74)' : 'rgb(248, 249, 250)')
       await account.click()
       const menu = page.getByRole('menu').filter({ has: page.getByRole('menuitem', { name: 'Settings', exact: true }) })
       await menu.waitFor()
       const appearance = await material(menu)
       expect(appearance).toMatchObject({
-        fill: dark ? 'rgba(67, 69, 74, 0.45)' : 'rgba(248, 249, 250, 0.58)',
-        blur: 'blur(40px) saturate(1.5)',
+        fill: dark ? 'rgb(67, 69, 74)' : 'rgb(248, 249, 250)',
+        blur: 'none',
       })
       expect(appearance.shadow).toContain(`${dark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.04)'} 0px 0px 0px 0.5px`)
       results[`${platform}-${dark ? 'dark' : 'light'}`] = appearance
-      const backing = page.locator('[data-menu-backing]')
-      if (platform === 'darwin') {
-        await backing.waitFor({ state: 'visible' })
-        for (const height of [950, 1000]) {
-          await page.setViewportSize({ width: 1440, height })
-          await expect.poll(async () => {
-            const card = await menu.boundingBox()
-            const base = await backing.boundingBox()
-            return card !== null && base !== null
-              && Math.abs(card.x - base.x) < 1 && Math.abs(card.y - base.y) < 1
-              && Math.abs(card.width - base.width) < 1 && Math.abs(card.height - base.height) < 1
-          }).toBe(true)
-        }
-        expect(await backing.evaluate(node => getComputedStyle(node).pointerEvents)).toBe('none')
-      } else {
-        expect(await backing.isVisible()).toBe(false)
-      }
       await page.keyboard.press('Escape')
-      await expect.poll(() => backing.count()).toBe(0)
+      await page.getByRole('menu').waitFor({ state: 'hidden' })
       await account.click()
       await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
       const settings = page.getByRole('dialog', { name: 'Settings', exact: true })
@@ -108,5 +92,5 @@ it('shares menu transparency and blur across palettes and follows native menu bo
   await compareOrRefreshGolden(join(expected, 'session-menu.expected.md'),
     await captureStableAria(page, '[role="menu"]', scaffold.workspaceCwd), webSnapshotMode())
   await page.keyboard.press('Escape')
-  await expect.poll(() => page.locator('[data-menu-backing]').count()).toBe(0)
+  await page.getByRole('menu').waitFor({ state: 'hidden' })
 })

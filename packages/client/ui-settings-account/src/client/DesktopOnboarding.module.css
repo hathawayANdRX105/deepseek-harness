@@ -160,7 +160,6 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  backdrop-filter: blur(32.609px);
   transition: background-color 120ms ease;
 }
 
