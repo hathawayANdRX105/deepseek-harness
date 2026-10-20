@@ -32,6 +32,7 @@ env:
 
 jobs:
   preview:
+    if: secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != ''
     runs-on: ubuntu-24.04
     name: cloudflare pages preview
     steps:
