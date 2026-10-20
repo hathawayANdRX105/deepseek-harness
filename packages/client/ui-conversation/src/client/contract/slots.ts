@@ -128,12 +128,28 @@ export type UseConversationViews = SnapshotSelectorHook<readonly ViewTab[]>
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Conversation shell beneath its root-scoped main-panel entry. */
-    'main.conversation': { kind: 'single'; scope: 'session-maybe' }
+    'main.conversation': {
+      kind: 'single'
+      scope: 'session-maybe'
+      owner: {
+        /**
+         * Whether the Session seat holding this shell is the selected one. A
+         * parked seat stays mounted but out of layout, so its transcript must
+         * not land, measure, or sample scrolling while parked and
+         * re-establishes its position when its seat is selected again.
+         */
+        sessionActive: boolean
+      }
+    }
     /** Strict per-Session Conversation body. */
     'conversation.session': {
       kind: 'single'
       scope: 'session'
-      owner: { view?: string }
+      owner: {
+        /** Parent-owned visibility of the Session seat holding this body. */
+        sessionActive: boolean
+        view?: string
+      }
     }
     /** Resident navigation container, including when no Session is selected. */
     'conversation.header': { kind: 'single'; scope: 'session-maybe' }
@@ -240,7 +256,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       inject: ConversationInjected
       locale: 'conversation'
       slots: {
-        views: { scope: 'session' }
+        views: { scope: 'session'; props: { sessionActive: boolean } }
         widthControls: { scope: 'root'; props: ConversationWidthControlsInputProps }
       }
     }
@@ -466,6 +482,12 @@ export interface ConversationContentInputProps {
   variant: 'main' | 'embedded'
   phase: 'settling' | 'hero' | 'active'
   hero: boolean
+  /**
+   * Whether the Session seat holding this occurrence is the selected one. A
+   * parked seat stays mounted but out of layout, so its content must not land,
+   * measure, or sample scrolling while parked.
+   */
+  sessionActive: boolean
 }
 
 /** Values passed from shared content to its occurrence-selected width controls. */

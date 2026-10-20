@@ -1,6 +1,9 @@
 /** Per-session Conversation store shared by the shell body and header. */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { ConversationSeatSnapshot } from './contract/seats.ts'
+import { ConversationSeats } from './conversation-seats.ts'
 import type { ConversationStoreState } from './contract/views.ts'
 import type { DraftInput, DraftSnapshot } from './contract/draft-editor.ts'
 import { parseStoredDraft } from './draft.ts'
@@ -71,4 +74,49 @@ export function readConversationViewPreference(sessionId: SessionId): string | n
   } catch {
     return null
   }
+}
+
+/** Declared write set for the retained Session seats of the main surface. */
+type ConversationSeatsActions = {
+  select: (draft: ConversationSeatSnapshot[], sessionId: SessionId | undefined) => void
+  selectMainView: (draft: ConversationSeatSnapshot[], mainViewIds: readonly SessionId[]) => void
+  remove: (draft: ConversationSeatSnapshot[], sessionId: SessionId) => void
+  releaseAll: (draft: ConversationSeatSnapshot[]) => void
+}
+
+/**
+ * Declare the retained Session seats of the main Conversation surface. The
+ * store publishes the seats; their Session references are owned by the seat
+ * manager, which the actions drive.
+ * @param sessions - allocator for the seats' independent references.
+ * @returns the store handle.
+ */
+export function createConversationSeatsStore(
+  sessions: ISessions,
+): EngineStoreHandle<ConversationSeatSnapshot[], ConversationSeatsActions> {
+  const seats = new ConversationSeats(sessions)
+  const publish = (draft: ConversationSeatSnapshot[]): void => {
+    draft.splice(0, draft.length, ...seats.snapshot())
+  }
+  return defineStore({
+    init: (): ConversationSeatSnapshot[] => [],
+    actions: {
+      select: (draft, sessionId) => {
+        seats.select(sessionId)
+        publish(draft)
+      },
+      selectMainView: (draft, mainViewIds) => {
+        seats.selectMainView(mainViewIds)
+        publish(draft)
+      },
+      remove: (draft, sessionId) => {
+        seats.remove(sessionId)
+        publish(draft)
+      },
+      releaseAll: (draft) => {
+        seats.dispose()
+        draft.splice(0, draft.length)
+      },
+    },
+  })
 }

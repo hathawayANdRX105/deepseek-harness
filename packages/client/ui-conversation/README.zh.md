@@ -78,6 +78,8 @@ View 选择规则固定：有效且已注册的持久化选择优先，其次是
 
 Session 首次绑定或缓存的 Session 成为 current 时，shell 会在渲染前读取持久化 View 偏好，激活已注册的偏好 View 或 Chat fallback，并在后续 tab 或 focus 选择写入 store 前先激活对应 target。blank Session 仍不渲染 `conversation.view` slot；未选中的 target 不会激活。本 Session 中激活过的 View 在另一个 View 活动期间保留自己的 seat，因此返回时复用其 DOM 与已累积行，而不是重建；本 Session 从未激活的 View 不会挂载，非活动的 seat 由各 seat 自身的样式表隐藏。`active` owner share 告诉保留的 target 其 seat 是否为活动 seat，Chat 读取该值以在隐藏期间暂停滚动策略。
 
+主界面还会为每个保留的 Session 保留一个 seat：当前选中 Session 的 seat 与最多两个更早的 Session 各自通过框架 `SessionProvider` 绑定到自己的 Session 并保持挂载，因此返回某个会话时复用其转录 DOM、滚动记忆与活动订阅，而不是重建。停放的 seat 退出布局但不卸载，`sessionActive` owner share 让停放的子树随之暂停滚动策略。离开 Host 列表的 Session 会释放其 seat 与引用；停放池有界，第三个会话出现时最旧的停放 Session 被释放。没有选中 Session 时，界面渲染无会话的 Conversation。
+
 主 occurrence 的活跃 transcript 只在未被内容覆盖的两侧沟槽中提供正文宽度拖拽条；嵌入式 occurrence 省略这些拖拽条。View 如果绘制进沟槽，只将具体的可见元素提到拖拽条上方；透明的全宽包装层保持在下方，不会占用空白沟槽。该规则要求此元素与 Conversation body 之间不能引入中间堆叠上下文；浏览器场景固定了交付 Chromium 的行为。Chat 将该规则用于表格元素，其限定在阅读列内的工具卡片无需提高层级。指针位于拖拽条上时，滚轮仍会滚动 transcript，Ctrl+滚轮则保留为浏览器缩放手势。粘滞 composer 刻意拥有完整的底部区带，该区域不是宽度调整目标；已捕获的拖拽会将指示线提高到松开为止（[拖动手柄样式](src/client/skeleton/ConversationRoot.module.css)）。
 
 宽度拖拽条的指示线只在已捕获指针的拖拽期间跟随指针，普通悬停不改变其位置。

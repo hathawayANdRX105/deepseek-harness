@@ -69,10 +69,10 @@ export function PlanCards({ turn, usePlans, openPlan, t }: PropsRuntime<'convers
  * @param props - Review identity, Session store, localized copy, and navigation.
  * @returns an opener for either logged or temporary plan text.
  */
-export function PlanReviewOpen({ review, requestKey, openReview, useSidebarMounted, t, useStore, actions }: PropsRuntime<'conversation.plan-review.actions'> & InjectFace<PlanReviewOpenInjected> & PropsLocale<'plan'> & PropsStore<ReturnType<typeof createPlanReviewStore>>) {
+export function PlanReviewOpen({ sessionId, review, requestKey, openReview, useSidebarMounted, t, useStore, actions }: PropsRuntime<'conversation.plan-review.actions'> & InjectFace<PlanReviewOpenInjected> & PropsLocale<'plan'> & PropsStore<ReturnType<typeof createPlanReviewStore>>) {
   const identity = review.callId === undefined ? `review:${requestKey}` : `call:${review.callId}`
   const opened = useStore(state => state.opened[identity] === true)
-  const mounted = useSidebarMounted(session => session !== undefined)
+  const mounted = useSidebarMounted(session => session === sessionId)
   useEffect(() => {
     if (opened || !mounted) return
     openReview(review, requestKey)

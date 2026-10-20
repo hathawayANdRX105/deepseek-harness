@@ -27,6 +27,8 @@ import {
 import { expandOwningTurnProcess, newEnglishPage, openSettings, saveFailureShot } from './support.ts'
 
 const MODE = webSnapshotMode()
+/** The selected Session's seat: parked seats keep their transcript mounted. */
+const ACTIVE_SEAT = '[data-session-seat][data-active="true"]'
 const HISTORY_SESSION_ID = 'chat-scroll-history-e2e'
 const TOOL_SESSION_ID = 'chat-scroll-tool-e2e'
 const RESTORE_SESSION_A_ID = 'chat-scroll-restore-a-e2e'
@@ -271,7 +273,7 @@ async function nextPaint(page: Page): Promise<void> {
 }
 
 function scrollGeometry(page: Page): Promise<ScrollGeometry> {
-  return page.locator('[data-conversation-scroll]').evaluate(host => ({
+  return page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).evaluate(host => ({
     distanceFromBottom: host.scrollHeight - host.clientHeight - host.scrollTop,
     scrollTop: host.scrollTop,
   }))
@@ -286,7 +288,7 @@ function scrollGeometry(page: Page): Promise<ScrollGeometry> {
  * @returns the number of mounted chat flow rows.
  */
 async function loadedFlowRows(page: Page): Promise<number> {
-  return page.locator('[data-chat-flow-key]').count()
+  return page.locator(`${ACTIVE_SEAT} [data-chat-flow-key]`).count()
 }
 
 async function openSeed(page: Page, fixture: ChatScrollFixture, tailMarker?: string): Promise<void> {
@@ -310,7 +312,7 @@ async function openSeed(page: Page, fixture: ChatScrollFixture, tailMarker?: str
 }
 
 async function wheelTranscript(page: Page, deltaY: number): Promise<void> {
-  const box = await page.locator('[data-conversation-scroll]').boundingBox()
+  const box = await page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).boundingBox()
   if (box === null) throw new Error('conversation scrollport has no layout box')
   await page.mouse.move(box.x + box.width / 2, box.y + Math.min(140, box.height / 3))
   await page.mouse.wheel(0, deltaY)
@@ -327,7 +329,7 @@ async function wheelTranscript(page: Page, deltaY: number): Promise<void> {
  * events. Wheel-sign semantics: positive deltaY reads downward.
  */
 async function flingTranscript(page: Page, deltaY: number): Promise<void> {
-  await page.locator('[data-conversation-scroll]').evaluate(async (host, delta) => {
+  await page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).evaluate(async (host, delta) => {
     const direction = Math.sign(delta)
     let remaining = Math.abs(delta)
     // Fast launch decaying toward a floor speed, like a released finger. The
@@ -380,7 +382,7 @@ async function wheelUntilVisible(page: Page, selector: string, deltaY: number): 
 }
 
 function visibleFlowAnchor(page: Page): Promise<FlowAnchor> {
-  return page.locator('[data-conversation-scroll]').evaluate((host) => {
+  return page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).evaluate((host) => {
     const rows = [...host.querySelectorAll<HTMLElement>('[data-chat-anchor-key]:not([hidden])')]
     const viewport = host.getBoundingClientRect()
     const composer = host.querySelector<HTMLElement>('[data-composer-seat]')
@@ -413,7 +415,7 @@ function visibleFlowAnchor(page: Page): Promise<FlowAnchor> {
 }
 
 function flowTop(page: Page, key: string): Promise<number> {
-  return page.locator('[data-chat-anchor-key]').evaluateAll((rows, anchorKey) => {
+  return page.locator(`${ACTIVE_SEAT} [data-chat-anchor-key]`).evaluateAll((rows, anchorKey) => {
     const row = rows.find(candidate => (candidate as HTMLElement).dataset.chatAnchorKey === anchorKey)
     if (!(row instanceof HTMLElement)) throw new Error(`stable Chat anchor ${anchorKey} is not mounted`)
     const host = row.closest('[data-conversation-scroll]')
@@ -467,7 +469,7 @@ async function loadEarlierWithAnchor(page: Page): Promise<void> {
   ), { timeout: 30_000 }).toBe(true)
   await nextPaint(page)
   if (await page.getByRole('button', { name: 'Load earlier', exact: true }).count() === 0) {
-    expect(await page.locator('[data-turn-process][aria-expanded="false"]').count()).toBeGreaterThan(0)
+    expect(await page.locator(`${ACTIVE_SEAT} [data-turn-process][aria-expanded="false"]`).count()).toBeGreaterThan(0)
     return
   }
   await expectSameFlowTop(page, anchor)
@@ -554,7 +556,7 @@ describe('web e2e: long Chat scroll contract', () => {
       await wheelTranscript(page, -600)
       await page.getByRole('button', { name: 'Back to bottom', exact: true }).click()
       await expectBottom(page)
-      const beforeHeight = await page.locator('[data-chat-flow]:has(> [data-slot="conversation.chat.flow"])')
+      const beforeHeight = await page.locator(`${ACTIVE_SEAT} [data-chat-flow]:has(> [data-slot="conversation.chat.flow"])`)
         .evaluate(element => element.getBoundingClientRect().height)
       const release = holdTextAfter(world, 0)
       const trace = page.evaluate(marker => new Promise<{
@@ -592,18 +594,18 @@ describe('web e2e: long Chat scroll contract', () => {
         host.setAttribute('data-fold-probe-ready', '')
         frame = requestAnimationFrame(tick)
       }), input)
-      await page.locator('[data-fold-probe-ready]').waitFor()
+      await page.locator(`${ACTIVE_SEAT} [data-fold-probe-ready]`).waitFor()
       let settled: ReturnType<WebScaffold['whenTurnSettled']> | undefined
       try {
-        await page.locator('[data-composer-input][contenteditable="true"]').last().fill(input)
+        await page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last().fill(input)
         await page.getByRole('button', { name: 'Send message', exact: true }).click()
         settled = world.scaffold.whenTurnSettled(30_000)
         await page.getByText(input, { exact: true }).waitFor()
-        await expect.poll(() => page.locator('[data-chat-motion="collapse"]').count()).toBe(0)
+        await expect.poll(() => page.locator(`${ACTIVE_SEAT} [data-chat-motion="collapse"]`).count()).toBe(0)
         await expectBottom(page)
         await nextPaint(page)
       } finally {
-        await page.locator('[data-conversation-scroll]').evaluate(host => host.dispatchEvent(new Event('dsh-test-fold-stop')))
+        await page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).evaluate(host => host.dispatchEvent(new Event('dsh-test-fold-stop')))
         release()
         await settled
       }
@@ -658,7 +660,7 @@ describe('web e2e: long Chat scroll contract', () => {
             .toMatchObject({ transcriptView: choice.toLowerCase() })
         }
         await dialog.getByRole('button', { name: 'Close', exact: true }).click()
-        await expect.poll(() => page.locator('[data-chat-motion="collapse"], [data-chat-motion="reveal"]').count()).toBe(0)
+        await expect.poll(() => page.locator(`${ACTIVE_SEAT} [data-chat-motion="collapse"], [data-chat-motion="reveal"]`).count()).toBe(0)
         await nextPaint(page)
       }
       const returnToBottom = async (): Promise<void> => {
@@ -666,7 +668,7 @@ describe('web e2e: long Chat scroll contract', () => {
         await page.getByRole('button', { name: 'Back to bottom', exact: true }).click()
         await expectBottom(page)
       }
-      const geometry = () => page.locator('[data-conversation-scroll]').evaluate(host => ({
+      const geometry = () => page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).evaluate(host => ({
         height: host.scrollHeight,
         viewport: host.clientHeight,
         spacer: host.querySelector<HTMLElement>('[data-chat-turn-spacer]')!.getBoundingClientRect().height,
@@ -677,7 +679,7 @@ describe('web e2e: long Chat scroll contract', () => {
       const release = holdTextAfter(world, 1)
       let replyStarted = false
       try {
-        await page.locator('[data-composer-input][contenteditable="true"]').last().fill('CHAT_MODE_NEXT_INPUT')
+        await page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last().fill('CHAT_MODE_NEXT_INPUT')
         await page.getByRole('button', { name: 'Send message', exact: true }).click()
         await page.getByText('CHAT_MODE_REPLY', { exact: false }).waitFor()
         replyStarted = true
@@ -859,13 +861,13 @@ describe('web e2e: long Chat scroll contract', () => {
       let settled: ReturnType<WebScaffold['whenTurnSettled']> | undefined
       await page.context().tracing.start({ screenshots: true, snapshots: true })
       try {
-        await page.locator('[data-composer-input][contenteditable="true"]').last().fill('CHAT_RUNNING_RETURN_NEXT_INPUT')
+        await page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last().fill('CHAT_RUNNING_RETURN_NEXT_INPUT')
         await page.getByRole('button', { name: 'Send message', exact: true }).click()
         await expect.poll(() => held[0]).toBe(true)
         await page.getByText(heldMarker, { exact: true }).waitFor()
         await page.locator('[data-chat-running]').waitFor()
         await page.locator('[data-chat-flow][data-chat-motion=""]').waitFor()
-        await expect.poll(() => page.locator('[data-chat-motion="collapse"], [data-chat-motion="reveal"]').count()).toBe(0)
+        await expect.poll(() => page.locator(`${ACTIVE_SEAT} [data-chat-motion="collapse"], [data-chat-motion="reveal"]`).count()).toBe(0)
         await expectBottom(page)
         const before = await scrollGeometry(page)
         const chunkCount = () => world.assistantFrames.filter(frame => frame.type === 'chunk').length
@@ -885,7 +887,7 @@ describe('web e2e: long Chat scroll contract', () => {
         await expectBottom(page)
         const afterGrowth = await scrollGeometry(page)
         expect(afterGrowth.scrollTop - beforeGrowth.scrollTop).toBeGreaterThan(200)
-        expect(await page.locator('[data-chat-following-tail]').count()).toBe(1)
+        expect(await page.locator(`${ACTIVE_SEAT} [data-chat-following-tail]`).count()).toBe(1)
         await page.getByRole('button', { name: 'Stop generating', exact: true }).waitFor()
         await expectMarkerAboveComposer(page, grownMarker)
         settled = world.scaffold.whenTurnSettled()
@@ -941,7 +943,7 @@ describe('web e2e: long Chat scroll contract', () => {
       seeds: [{ fixture: HISTORY_FIXTURE, id: HISTORY_SESSION_ID }],
     }, async (world) => {
       await openSeed(world.page, HISTORY_FIXTURE, HISTORY_FIXTURE.markers.assistant(HISTORY_FIXTURE.turns))
-      const host = world.page.locator('[data-conversation-scroll]')
+      const host = world.page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`)
       const backToBottom = world.page.getByRole('button', { name: 'Back to bottom', exact: true })
       const expectControls = async (): Promise<void> => {
         await expect.poll(() => host.evaluate((element) => {
@@ -970,7 +972,7 @@ describe('web e2e: long Chat scroll contract', () => {
 
       const seat = world.page.locator('[data-composer-seat]')
       const initialHeight = await seat.evaluate(element => element.getBoundingClientRect().height)
-      const composer = world.page.locator('[data-composer-input][contenteditable="true"]').last()
+      const composer = world.page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last()
       await composer.fill(Array.from({ length: 8 }, (_, index) => `draft line ${index}`).join('\n'))
       await expect.poll(() => seat.evaluate(element => element.getBoundingClientRect().height))
         .toBeGreaterThan(initialHeight + 40)
@@ -1038,7 +1040,7 @@ describe('web e2e: long Chat scroll contract', () => {
       const settled = world.scaffold.whenTurnSettled(60_000)
       const releaseText = holdTextAfter(world, 1)
       try {
-        const composer = world.page.locator('[data-composer-input][contenteditable="true"]').last()
+        const composer = world.page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last()
         await composer.fill(LIVE_TEXT_PROMPT)
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
         await world.page.getByText(LIVE_TEXT_FIRST, { exact: false }).last().waitFor({ timeout: 15_000 })
@@ -1081,7 +1083,7 @@ describe('web e2e: long Chat scroll contract', () => {
       // The whole log is loaded: turn 1's unique marker renders in the
       // transcript (scoped: the sidebar search row also carries it) and no
       // page remains.
-      expect(await world.page.locator('[data-conversation-scroll]')
+      expect(await world.page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`)
         .getByText(HISTORY_FIXTURE.markers.user(1), { exact: false }).count()).toBe(1)
       expect(await world.page.getByRole('button', { name: 'Load earlier', exact: true }).count()).toBe(0)
       assertClean(world)
@@ -1130,7 +1132,7 @@ describe('web e2e: long Chat scroll contract', () => {
       })
       const settled = world.scaffold.whenTurnSettled(60_000)
       try {
-        await world.page.locator('[data-composer-input][contenteditable="true"]').last().fill(
+        await world.page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last().fill(
           'Inspect the recorded operations while I scroll the conversation.',
         )
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
@@ -1290,10 +1292,10 @@ describe('web e2e: long Chat scroll contract', () => {
       await firstLoaded.evaluate((el) => { (el as HTMLElement).blur() })
       await expect.poll(() => world.page.getByRole('tooltip').count(), { timeout: 15_000 }).toBe(0)
       await nextPaint(world.page)
-      const marker = world.page.locator('[data-conversation-scroll]')
+      const marker = world.page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`)
         .getByText(HISTORY_FIXTURE.markers.user(1), { exact: false })
       expect(await marker.count()).toBe(1)
-      const scrollport = await world.page.locator('[data-conversation-scroll]').boundingBox()
+      const scrollport = await world.page.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`).boundingBox()
       const row = await marker.boundingBox()
       if (scrollport === null || row === null) throw new Error('turn-1 row or scrollport has no layout box')
       expect(row.y - scrollport.y).toBeGreaterThanOrEqual(0)
@@ -1320,7 +1322,7 @@ describe('web e2e: long Chat scroll contract', () => {
       const settled = world.scaffold.whenTurnSettled(60_000)
       let released = false
       try {
-        const composer = world.page.locator('[data-composer-input][contenteditable="true"]').last()
+        const composer = world.page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last()
         await composer.fill(LIVE_TOOL_PROMPT)
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
         await expect.poll(() => fileExists(readyPath), { timeout: 15_000 }).toBe(true)
@@ -1462,7 +1464,7 @@ describe('web e2e: long Chat scroll contract', () => {
         RESTORE_FIXTURE_A.markers.assistant(RESTORE_FIXTURE_A.turns),
       )
       await expectBottom(world.page)
-      const composer = world.page.locator('[data-composer-input][contenteditable="true"]').last()
+      const composer = world.page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last()
       const longDraft = Array.from(
         { length: 18 },
         (_, index) => `composer resize line ${String(index + 1).padStart(2, '0')}`,
@@ -1554,7 +1556,7 @@ describe('web e2e: long Chat scroll contract', () => {
       const releaseText = holdTextAfter(world, 16)
       let released = false
       try {
-        const composer = world.page.locator('[data-composer-input][contenteditable="true"]').last()
+        const composer = world.page.locator(`${ACTIVE_SEAT} [data-composer-input][contenteditable="true"]`).last()
         await composer.fill(LIVE_FLING_PROMPT)
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
         await expect.poll(() => fileExists(readyPath), { timeout: 15_000 }).toBe(true)

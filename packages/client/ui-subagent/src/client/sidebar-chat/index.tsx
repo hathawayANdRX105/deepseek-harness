@@ -119,7 +119,7 @@ function subagentChatResourceProvider(sessions: ISessions): ResourceProvider<'su
 
 /** Fixed Chat selection used by an embedded Conversation occurrence. */
 export function FixedChatConversationView(props: ConversationViewsProps) {
-  return <>{props.renderSlot('conversation.session', { view: 'chat' })}</>
+  return <>{props.renderSlot('conversation.session', { view: 'chat', sessionActive: true })}</>
 }
 
 /** Props supplied to the child-Session Conversation host. */
@@ -142,7 +142,7 @@ export function ConversationSlotPanel({
     || parentAvailabilityPending
   const hero = shellPhase === 'blank' && (session.openState === 'open' || summaryBlank === true)
   const phase = settling ? 'settling' : hero ? 'hero' : 'active'
-  return renderFactorySlot('conversation.content', { variant: 'embedded', phase, hero }, {
+  return renderFactorySlot('conversation.content', { variant: 'embedded', phase, hero, sessionActive: true }, {
     slots: { views: FixedChatConversationView },
   })
 }

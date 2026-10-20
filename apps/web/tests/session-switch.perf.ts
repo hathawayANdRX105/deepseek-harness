@@ -19,7 +19,9 @@ import {
 import { newEnglishPage } from './support.ts'
 
 /** Settled-Turn witness: one mounted tail footer per turn inside the loaded window. */
-const TAIL = '[data-chat-flow-key^="9:turn-tail"]'
+/** The selected Session's seat: parked seats keep their transcript mounted. */
+const ACTIVE_SEAT = '[data-session-seat][data-active="true"]'
+const TAIL = `${ACTIVE_SEAT} [data-chat-flow-key^="9:turn-tail"]`
 const LONG_TURNS = 200
 const SMALL_SESSIONS = 8
 const UI_TIMEOUT_MS = 30_000
@@ -196,19 +198,21 @@ async function waitTranscript(page: Page, sessionId: string, marker: string): Pr
   await page.waitForFunction(({ sessionId, marker }) => {
     const bound = document.querySelector(`[data-conversation-content][data-conversation-session="${sessionId}"]`)
     if (bound === null) return false
-    const step = Array.from(document.querySelectorAll('[data-chat-flow-kind="assistant-step"]')).at(-1)
+    const step = Array.from(bound.querySelectorAll('[data-chat-flow-kind="assistant-step"]')).at(-1)
     return step !== undefined && (step.textContent ?? '').includes(marker)
   }, { sessionId, marker }, { timeout: UI_TIMEOUT_MS })
 }
 
 /** Wait for the Trajectory view's own readiness witness. */
 async function waitTrajectory(page: Page): Promise<void> {
-  await page.waitForFunction(() => {
-    const search = document.querySelector('input[type="search"][aria-label="Search trajectory"]')
+  await page.waitForFunction((activeSeat) => {
+    const seat = document.querySelector(activeSeat)
+    if (seat === null) return false
+    const search = seat.querySelector('input[type="search"][aria-label="Search trajectory"]')
     if (search === null || !search.checkVisibility({ checkVisibilityCSS: true })) return false
-    return Array.from(document.querySelectorAll('[data-trajectory-scroll] [data-trajectory-row-key]'))
+    return Array.from(seat.querySelectorAll('[data-trajectory-scroll] [data-trajectory-row-key]'))
       .some(row => row.checkVisibility({ checkVisibilityCSS: true }))
-  }, undefined, { timeout: UI_TIMEOUT_MS })
+  }, ACTIVE_SEAT, { timeout: UI_TIMEOUT_MS })
 }
 
 async function openSessionRow(page: Page, session: SwitchSession): Promise<void> {
@@ -349,7 +353,7 @@ describe('session switching cost', () => {
 
   it('reports the transcript anchor across a Trajectory detour', async () => {
     const world = page!
-    const scroller = world.locator('[data-conversation-scroll]')
+    const scroller = world.locator(`${ACTIVE_SEAT} [data-conversation-scroll]`)
     // A reader gesture, then an upstream offset: following the tail would snap
     // back, and wheel marks the movement as reader-owned before the write.
     // When the main-conversation transcript fits the viewport, range is zero;

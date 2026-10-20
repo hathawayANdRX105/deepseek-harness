@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-19-cross-session-conversation-seats.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-19-cross-session-conversation-seats.md
+/agent-note-cross-session-conversation-seats:
+  en: aacd5e44adf45d7f
+  zh: ea1b06f8ca2978ad
+/agent-note-cross-session-conversation-seats/problem:
+  en: 8ace25f63b085a12
+  zh: b800e53901127aae
+/agent-note-cross-session-conversation-seats/decision:
+  en: ca0ae27a63e45f28
+  zh: b05c0f0f10d4ba3b
+/agent-note-cross-session-conversation-seats/measurements:
+  en: 1e06737e7688aaea
+  zh: fa834bcc4733e15a
+/agent-note-cross-session-conversation-seats/alternatives-considered:
+  en: d949f302fd67a264
+  zh: a97fc76a0cd11000
+/agent-note-cross-session-conversation-seats/consequences:
+  en: 280523c966fc273a
+  zh: ca330ee44afe3f70

@@ -21,7 +21,7 @@ import type {
 } from './contract/slots.ts'
 import type { InputNotice } from './contract/input.ts'
 import type { ReferenceInsert } from './contract/draft-editor.ts'
-import { createConversationStore, readConversationViewPreference } from './stores.ts'
+import { createConversationSeatsStore, createConversationStore, readConversationViewPreference } from './stores.ts'
 import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import { relativizeToCwd, workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import { ConversationController, UnsupportedImageMediaTypeError, isImageMediaType } from './service.ts'
@@ -165,6 +165,32 @@ export function apply(ctx: Context, config: Config = Config({})): void {
   )
 
   ctx.effect(() => () => { submissionPolicy.dispose() })
+
+  // Retained Session seats of the main Conversation surface: the selected
+  // Session's seat and up to two earlier ones stay mounted, so returning to a
+  // Session reuses its transcript instead of rebuilding it.
+  const seatsHandle = createConversationSeatsStore(sessions)
+  const seatsInstance = seatsHandle.create()
+  const seatsStore: typeof seatsHandle = { ...seatsHandle, create: () => seatsInstance }
+  ctx.effect(() => {
+    const update = (): void => {
+      const byId = sessions.list.getSnapshot().byId
+      const mainViewIds: SessionId[] = []
+      for (const row of Object.values(byId)) {
+        if ((row.retainedBy.mainView ?? 0) > 0) mainViewIds.push(row.id)
+      }
+      seatsInstance.actions.selectMainView(mainViewIds)
+      for (const seat of seatsInstance.getSnapshot()) {
+        if (byId[seat.sessionId] === undefined) seatsInstance.actions.remove(seat.sessionId)
+      }
+    }
+    const dispose = sessions.list.subscribe(update)
+    update()
+    return () => {
+      dispose()
+      seatsInstance.actions.releaseAll()
+    }
+  }, 'ui-conversation: session seats')
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
@@ -534,6 +560,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       name: 'main',
       key: 'conversation',
       children: { 'main.conversation': { kind: 'single', scope: 'session-maybe' } },
+      store: seatsStore,
     }, ConversationPanel)
     yield registerConversationRoot()
     yield registerConversationContent()
