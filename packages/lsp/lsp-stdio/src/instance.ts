@@ -151,37 +151,65 @@ export class LspInstance {
     }
 
     const uri = source.fileUrl
-    let opened = false
-    try {
-      /* v8 ignore next -- guards an abort landing between the ready wait and didOpen; not deterministically reproducible. */
-      if (signal?.aborted) throw abortError(signal)
+    // rust-glancer indexes asynchronously after didOpen; early queries can fail with
+    // "the document analysis route is still being resolved". Retry that transient
+    // condition for a bounded window so the first query on a fresh workspace succeeds.
+    const maxIndexAttempts = 30
+    const indexRetryDelayMs = 1000
+    const isIndexNotReady = (error: unknown): boolean =>
+      error instanceof Error &&
+      !(error instanceof LspError) &&
+      error.message.includes('still being resolved')
+    const runAttempt = async (): Promise<LspQueryResult> => {
+      let opened = false
       try {
-        await abortable(this.connection.notify('textDocument/didOpen', {
-          textDocument: { uri, languageId: request.languageId, version: 1, text: source.text },
-        }), signal)
-      } catch (error) {
-        // A canceled backpressured write or failed stdin leaves the protocol stream unusable before
-        // `opened` can arm the didClose cleanup. Teardown here makes the pool evict the instance.
-        await this.awaitTeardownAttempt()
-        throw error
-      }
-      opened = true
-      const payload = await this.sendRequest(request.operation, uri, request.position, signal)
-      return this.normalize(request.operation, payload)
-    } finally {
-      // A disposed or closed instance (e.g. an aborted request whose server ignored
-      // `$/cancelRequest`) is already tearing down; sending didClose would race that teardown and let
-      // the next queued query's document lifecycle overlap the still-active request.
-      if (opened && !this.dead) {
+        /* v8 ignore next -- guards an abort landing between the ready wait and didOpen; not deterministically reproducible. */
+        if (signal?.aborted) throw abortError(signal)
         try {
-          await this.connection.notify('textDocument/didClose', { textDocument: { uri } })
-        } catch (_closeFailure: unknown) {
-          // A close-write failure does not replace the settled result/error, but the instance can no
-          // longer be trusted. The provider re-awaits this teardown and owns failure reporting.
+          await abortable(this.connection.notify('textDocument/didOpen', {
+            textDocument: { uri, languageId: request.languageId, version: 1, text: source.text },
+          }), signal)
+        } catch (error) {
+          // A canceled backpressured write or failed stdin leaves the protocol stream unusable before
+          // `opened` can arm the didClose cleanup. Teardown here makes the pool evict the instance.
           await this.awaitTeardownAttempt()
+          throw error
+        }
+        opened = true
+        const payload = await this.sendRequest(request.operation, uri, request.position, signal)
+        return this.normalize(request.operation, payload)
+      } finally {
+        // A disposed or closed instance (e.g. an aborted request whose server ignored
+        // `$/cancelRequest`) is already tearing down; sending didClose would race that teardown and let
+        // the next queued query's document lifecycle overlap the still-active request.
+        if (opened && !this.dead) {
+          try {
+            await this.connection.notify('textDocument/didClose', { textDocument: { uri } })
+          } catch (_closeFailure: unknown) {
+            // A close-write failure does not replace the settled result/error, but the instance can no
+            // longer be trusted. The provider re-awaits this teardown and owns failure reporting.
+            await this.awaitTeardownAttempt()
+          }
         }
       }
     }
+    for (let attempt = 0; attempt < maxIndexAttempts; attempt++) {
+      try {
+        return await runAttempt()
+      } catch (error) {
+        if (!isIndexNotReady(error) || attempt === maxIndexAttempts - 1) throw error
+        if (signal?.aborted) throw error
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, indexRetryDelayMs)
+          signal?.addEventListener('abort', () => {
+            clearTimeout(timer)
+            reject(abortError(signal))
+          }, { once: true })
+        })
+      }
+    }
+    /* v8 ignore next -- the retry loop always returns or throws; this line is unreachable. */
+    throw new Error('unreachable')
   }
 
   private async sendRequest(
