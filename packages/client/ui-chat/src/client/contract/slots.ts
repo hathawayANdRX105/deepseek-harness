@@ -389,11 +389,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'conversation.message.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
     /**
-     * Names `0.2.1-alpha.4` renders the same gallery through, kept declared so
-     * a presentation plugin may fill them across that version and this one.
-     * They carry no independent behavior; see `ui-attachment`.
+     * Renderer for one consecutive group of durable message images inside an
+     * assistant message. The owner supplies image references, an authorized
+     * loader, and alignment. A registration replaces the shipped gallery;
+     * without one, images are omitted.
      */
     'conversation.chat.message.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
+    /**
+     * Renderer for the images attached to one user message. The owner supplies
+     * image references, an authorized loader, and alignment. A registration
+     * replaces the shipped gallery; without one, images are omitted.
+     */
     'conversation.chat.user.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
     /**
      * Command row keyed by the command name. The component receives the folded
