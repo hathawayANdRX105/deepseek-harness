@@ -11,22 +11,23 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { GoalActivation, GoalId, GoalProjection, GoalView } from '@deepseek-ai/dsh-goal/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { makeTranslate, RemoteError, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
+import { makeTranslate, RemoteError, stubConfigForm, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionFixture } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import type { GoalActivationSnapshot, GoalBarActions, GoalBarInjected } from '../src/client/slots.ts'
+import type { AutoGoalToggleInjected, GoalActivationSnapshot, GoalBarActions, GoalBarInjected } from '../src/client/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { GoalDock } from '../src/client/GoalBar.tsx'
+import { AutoGoalToggle } from '../src/client/AutoGoalToggle.tsx'
 import { zh } from '../src/client/locales.ts'
-import { apply as nodeApply } from '../src/index.ts'
 
 afterEach(cleanup)
 
@@ -141,6 +142,8 @@ async function bench(options: {
     },
   } as never, (() => null) as never)
   ctx.provide('locale', new LocaleRuntime(ctx))
+  const goalSettings = stubConfigForm<{ autoGoal: boolean }>()
+  ctx.provide('configForms', { get: () => goalSettings.scope } as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   return {
     ctx,
@@ -148,12 +151,13 @@ async function bench(options: {
     calls,
     sessions,
     owner,
+    goalSettings,
     emitActivation: remote.emitActivation.bind(remote),
     definitions: () => conversationEvents.entries(),
     remountGoals: () => { activeGoals = goals('remounted-goals') },
     unmountGoals: () => { activeGoals = undefined },
     entry: () => {
-      const entry = ctx.slots.entries('conversation.input.dock')[0]
+      const entry = ctx.slots.entries('conversation.input.dock').find(entry => entry.options.id === 'goal')
       if (entry === undefined) return undefined
       return {
         ...entry.options,
@@ -161,6 +165,7 @@ async function bench(options: {
         inject: entry.inject as unknown as ((sessionId: SessionId) => GoalBarInjected) | undefined,
       }
     },
+    autoGoalEntry: () => ctx.slots.entries('conversation.input.dock').find(entry => entry.options.id === 'goal-auto'),
     chatEntry: () => ctx.slots.entries('conversation.chat.node')[0],
   }
 }
@@ -225,15 +230,33 @@ describe('ui-goal browser plugin', () => {
     }
   })
 
-  it('registers the GoalBar dock, command input Definition, and keyed Chat renderer', async () => {
+  it('registers the GoalBar and auto-goal docks, command input Definition, and keyed Chat renderer', async () => {
     const b = await bench()
     await b.fiber.await()
     expect(b.entry()).toMatchObject({ id: 'goal', order: 10, locale: 'goal' })
     expect(b.entry()?.inject).toBeTypeOf('function')
     expect(() => b.entry()!.inject!(sid('missing'))).toThrow(/unavailable/)
+    expect(b.autoGoalEntry()?.options).toMatchObject({ id: 'goal-auto', order: -10 })
+    expect(b.autoGoalEntry()?.locale).toBe('goal')
+    expect(b.autoGoalEntry()?.inject).toBeTypeOf('function')
     expect(b.definitions().map(definition => definition.kind)).toEqual(['goal-command-input'])
     expect(b.chatEntry()?.options).toMatchObject({ key: 'command-input' })
     expect(b.chatEntry()?.locale).toBe('goal')
+  })
+
+  it('mirrors the Host auto-goal preference into the dock entry and publishes toggle writes', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const autoGoalInject = b.autoGoalEntry()!.inject as unknown as ((sessionId: SessionId) => AutoGoalToggleInjected)
+    const injected = autoGoalInject(sid('s1'))
+    expect(injected.hooks.autoGoal.getSnapshot()).toBe(false)
+    injected.setAutoGoal(true)
+    expect(injected.hooks.autoGoal.getSnapshot()).toBe(true)
+    expect(b.goalSettings.set).toHaveBeenCalledWith('autoGoal', true)
+    b.goalSettings.publish({ value: { autoGoal: true } })
+    expect(injected.hooks.autoGoal.getSnapshot()).toBe(true)
+    injected.setAutoGoal(false)
+    expect(b.goalSettings.set).toHaveBeenLastCalledWith('autoGoal', false)
   })
 
   it('verbs read the CAS ref from the current projected value at call time', async () => {
@@ -385,8 +408,38 @@ describe('GoalDock adapter', () => {
   })
 })
 
-describe('ui-goal node half', () => {
-  it('the node apply is an inert loader seat', () => {
-    expect(() => { nodeApply() }).not.toThrow()
+describe('AutoGoalToggle', () => {
+  it('renders the preference state as a button and toggles it', () => {
+    const autoGoal = createSnapshotStore(false)
+    const setAutoGoal = vi.fn((enabled: boolean) => { autoGoal.set(enabled) })
+    const t = makeTranslate(zh, commonZh)
+    const props = {
+      useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
+      setAutoGoal,
+      t,
+    } as unknown as Parameters<typeof AutoGoalToggle>[0]
+    const rendered = render(<AutoGoalToggle {...props} />)
+    expect(rendered.getByText('goal')).toBeTruthy()
+    const toggle = screen.getByRole('button', { name: '开启自动目标模式' })
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(toggle)
+    expect(setAutoGoal).toHaveBeenCalledWith(true)
+    expect(autoGoal.getSnapshot()).toBe(true)
+  })
+
+  it('marks the enabled state with a pressed button', () => {
+    const autoGoal = createSnapshotStore(true)
+    const setAutoGoal = vi.fn((enabled: boolean) => { autoGoal.set(enabled) })
+    const t = makeTranslate(zh, commonZh)
+    const props = {
+      useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
+      setAutoGoal,
+      t,
+    } as unknown as Parameters<typeof AutoGoalToggle>[0]
+    render(<AutoGoalToggle {...props} />)
+    const toggle = screen.getByRole('button', { name: '关闭自动目标模式' })
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(toggle)
+    expect(setAutoGoal).toHaveBeenCalledWith(false)
   })
 })

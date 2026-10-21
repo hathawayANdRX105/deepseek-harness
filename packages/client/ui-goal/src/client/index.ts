@@ -1,12 +1,16 @@
 /**
- * Goal surface plugin, browser half: the GoalBar entry in the
- * conversation.input.dock strip. The durable goal arrives through
+ * Goal surface plugin, browser half: the GoalBar entry and the auto-goal
+ * toggle in the conversation.input.dock strip. The durable goal arrives through
  * `useProjection('goal')`. A registrant-private activation hook source owns
  * the live Remote read and event subscription; the inject face carries that
  * hook plus the four mutation verbs through the generated Goal Remote API.
  * Activation reads retain the Client Session through completion and wait
  * for its initial history open to succeed before contacting the Host.
- * This plugin does not create goals; deployments may expose /goal separately.
+ * The auto-goal toggle mirrors the Host-persisted `ui-goal.autoGoal`
+ * preference and publishes toggle writes through the shared config form.
+ * This plugin does not create goals by itself; deployments may expose
+ * /goal separately, and the Host half of this plugin turns composer
+ * prompts into goals only while the auto-goal preference is enabled.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -25,11 +29,16 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the Session standard useProjection seat.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+// Type-only: pulls the shared configuration-form service (ctx.configForms).
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: the `goal` SessionProjectionMap key merge (single source, the domain's pure outlet).
 import type { GoalProjection, GoalRef } from '@deepseek-ai/dsh-goal/client'
-import type { GoalActionResult, GoalBarInjected } from './slots.ts'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { AUTO_GOAL_FIELD, GOAL_SETTINGS_NAMESPACE, type GoalSettings } from '../goal-settings.ts'
+import type { AutoGoalToggleInjected, GoalActionResult, GoalBarInjected } from './slots.ts'
 import { createGoalActivationSource } from './activation-source.ts'
 import { GoalDock } from './GoalBar.tsx'
+import { AutoGoalToggle } from './AutoGoalToggle.tsx'
 import { GoalCommandInputView } from './GoalCommandInputView.tsx'
 import { goalCommandInputDefinition } from './goal-command-input.ts'
 import { en, zh, type GoalKey } from './locales.ts'
@@ -57,11 +66,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Dictionary namespace owned by this plugin. */
 const NS = 'goal'
 
-/** Required services for the Goal dock, command-input projection, Remote mutations, and copy. */
-export const inject = ['slots', 'sessions', 'remote', 'remote.goals', 'locale', 'uiConversation']
+/** Required services for the Goal dock, command-input projection, Remote mutations, auto-goal preference, and copy. */
+export const inject = ['slots', 'sessions', 'remote', 'remote.goals', 'locale', 'uiConversation', 'configForms']
 
 /**
- * Client plugin body: the GoalBar dock entry with its mutation verbs.
+ * Client plugin body: the GoalBar and auto-goal dock entries with their
+ * mutation verbs and the mirrored auto-goal preference.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -94,7 +104,7 @@ export function apply(ctx: ClientContext): void {
     id: 'goal',
     order: 10,
     locale: NS,
-    inject: (sessionId): GoalBarInjected => {
+    inject: (sessionId: SessionId): GoalBarInjected => {
       const binding = sessions.binding(sessionId)
       if (binding === undefined) throw new Error(`ui-goal: session "${sessionId}" is unavailable`)
       const goalActivation = createGoalActivationSource({
@@ -142,4 +152,29 @@ export function apply(ctx: ClientContext): void {
       }
     },
   }, GoalDock))
+
+  // Auto-goal preference: one live store per browser shell, mirrored from the
+  // Host user-settings document and written back through the shared form.
+  const goalSettingsForm = ctx.configForms.get<GoalSettings>(GOAL_SETTINGS_NAMESPACE)
+  const autoGoal = createSnapshotStore<boolean>(goalSettingsForm.getSnapshot().value?.autoGoal ?? false)
+  const adoptAutoGoal = (): void => {
+    const value = goalSettingsForm.getSnapshot().value?.autoGoal
+    if (value !== autoGoal.getSnapshot()) autoGoal.set(value ?? false)
+  }
+  ctx.effect(() => goalSettingsForm.subscribe(adoptAutoGoal), 'ui-goal: auto-goal preference mirror')
+
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
+    name: 'conversation.input.dock',
+    id: 'goal-auto',
+    order: -10,
+    locale: NS,
+    inject: (): AutoGoalToggleInjected => ({
+      hooks: { autoGoal },
+      setAutoGoal: (enabled) => {
+        if (autoGoal.getSnapshot() === enabled) return
+        autoGoal.set(enabled)
+        void goalSettingsForm.set(AUTO_GOAL_FIELD, enabled)
+      },
+    }),
+  }, AutoGoalToggle))
 }

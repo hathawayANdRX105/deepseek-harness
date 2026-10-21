@@ -1,13 +1,14 @@
 /**
- * GoalBar's injected face. The target 'conversation.input.dock' slot is
- * declared (children table) and typed by ui-conversation; this package only
- * contributes the entry, so no SlotMap merge lives here. The durable goal
- * value arrives through `useProjection('goal')` (the framework standard kit);
- * the injected face carries mutation verbs and a registrant-private
- * activation hook source.
+ * Injected faces of the two goal dock entries. The target
+ * 'conversation.input.dock' slot is declared (children table) and typed by
+ * ui-conversation; this package only contributes the entries, so no SlotMap
+ * merge lives here. The durable goal value arrives through
+ * `useProjection('goal')` (the framework standard kit); the injected faces
+ * carry mutation verbs and registrant-private hook sources.
  */
 
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { GoalActivation, GoalId } from '@deepseek-ai/dsh-goal/client'
 
@@ -61,3 +62,17 @@ export interface GoalBarActions {
 
 /** Injected business face of the GoalBar dock entry. */
 export type GoalBarInjected = GoalBarActions & GoalActivationInjected
+
+/** Injected business face of the auto-goal dock entry: the live preference hook and its write verb. */
+export interface AutoGoalToggleInjected {
+  /** Registrant-private observable source bound by the slot renderer. */
+  readonly hooks: {
+    /** Whether every composer prompt should become the session's goal. */
+    readonly autoGoal: ObservableSnapshot<boolean>
+  }
+  /**
+   * Persist and publish the auto-goal preference.
+   * @param enabled - the requested toggle state.
+   */
+  readonly setAutoGoal: (enabled: boolean) => void
+}
