@@ -31,6 +31,7 @@
     "tests/shortcuts-fixed.e2e.ts",
     "tests/shortcuts.e2e.ts",
     "tests/composer-shortcuts.e2e.ts",
+    "tests/composer-ime-selection.e2e.ts",
     "tests/default-product-isolation.e2e.ts",
     "tests/diff-context.e2e.ts",
     "tests/code-card-layout.e2e.ts",
