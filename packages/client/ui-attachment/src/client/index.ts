@@ -17,10 +17,22 @@ export function apply(ctx: ClientContext): void {
     name: 'conversation.input.attachments',
     locale: 'conversation',
   }, ComposerAttachments))
-  ctx.slots.inject('conversation.message.images', () => ctx.slots.register({
-    name: 'conversation.message.images',
-    locale: 'conversation',
-  }, MessageImages))
+  // `0.2.1-alpha.4` renders message images through the
+  // `conversation.chat.*.images` names while the current tree renders them
+  // through `conversation.message.images`. Filling only one of the two leaves
+  // the other unoccupied, and an unoccupied slot renders nothing by design, so
+  // both names carry the same gallery.
+  const imageSlots = [
+    'conversation.message.images',
+    'conversation.chat.message.images',
+    'conversation.chat.user.images',
+  ] as const
+  for (const name of imageSlots) {
+    ctx.slots.inject(name, () => ctx.slots.register({
+      name,
+      locale: 'conversation',
+    }, MessageImages))
+  }
   ctx.slots.inject('conversation.trajectory.images', () => ctx.slots.register({
     name: 'conversation.trajectory.images',
     locale: 'conversation',

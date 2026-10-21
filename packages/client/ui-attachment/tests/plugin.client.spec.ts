@@ -14,6 +14,8 @@ async function bench() {
     children: {
       'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
       'conversation.message.images': { kind: 'single', scope: 'session' },
+      'conversation.chat.message.images': { kind: 'single', scope: 'session' },
+      'conversation.chat.user.images': { kind: 'single', scope: 'session' },
       'conversation.trajectory.images': { kind: 'single', scope: 'session' },
       'tool.call.images': { kind: 'single', scope: 'session' },
     },
@@ -35,10 +37,15 @@ describe('attachment plugin', () => {
       locale: 'conversation',
       component: ComposerAttachments,
     }])
-    expect(ctx.slots.entries('conversation.message.images')).toMatchObject([{
-      locale: 'conversation',
-      component: MessageImages,
-    }])
+    // `0.2.1-alpha.4` renders the gallery through the two
+    // `conversation.chat.*.images` names while the current tree uses
+    // `conversation.message.images`; all three must be filled.
+    for (const name of ['conversation.message.images', 'conversation.chat.message.images', 'conversation.chat.user.images'] as const) {
+      expect(ctx.slots.entries(name)).toMatchObject([{
+        locale: 'conversation',
+        component: MessageImages,
+      }])
+    }
     expect(ctx.slots.entries('conversation.trajectory.images')).toMatchObject([{
       locale: 'conversation',
       component: MessageImages,
@@ -52,6 +59,8 @@ describe('attachment plugin', () => {
 
     expect(ctx.slots.entries('conversation.input.attachments')).toHaveLength(0)
     expect(ctx.slots.entries('conversation.message.images')).toHaveLength(0)
+    expect(ctx.slots.entries('conversation.chat.message.images')).toHaveLength(0)
+    expect(ctx.slots.entries('conversation.chat.user.images')).toHaveLength(0)
     expect(ctx.slots.entries('conversation.trajectory.images')).toHaveLength(0)
     expect(ctx.slots.entries('tool.call.images')).toHaveLength(0)
   })

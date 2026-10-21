@@ -389,6 +389,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'conversation.message.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
     /**
+     * Names `0.2.1-alpha.4` renders the same gallery through, kept declared so
+     * a presentation plugin may fill them across that version and this one.
+     * They carry no independent behavior; see `ui-attachment`.
+     */
+    'conversation.chat.message.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
+    'conversation.chat.user.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
+    /**
      * Command row keyed by the command name. The component receives the folded
      * command lifecycle and linked compaction when present. Reusing a key
      * replaces that command renderer; an unoccupied key uses the generic card.
