@@ -14,6 +14,7 @@ import { registerReferenceActivation } from './reference-activation.ts'
 import { ReferenceChipNode, $createReferenceChipNode } from './chip-node.tsx'
 import { refreshClaimDecoration, registerClaimDecoration } from './claim-decor.ts'
 import { registerTextRefDecoration, rescanTextRefs, TextRefNode } from './text-ref.ts'
+import { registerInsertSelectionGuard } from './insert-selection-guard.ts'
 import type { EditorProjection } from './projection.ts'
 import { $composerLayout, $projectComposer, detectOffsetOfClipboardOffset } from './projection.ts'
 import { $replaceDetectSpanWithNodes, $replaceDetectSpanWithText } from './span-map.ts'
@@ -90,6 +91,7 @@ export class DraftEditorRuntime {
       this.editor.registerUpdateListener(() => { this.deps.onUpdate() }),
       registerClaimDecoration(this.editor, () => this.deps.activeClaimToken()),
       registerTextRefDecoration(this.editor, () => this.deps.lexicon(), () => this.deps.activeClaimToken()),
+      registerInsertSelectionGuard(this.editor),
       () => {
         this.lexiconOff?.()
         this.lexiconOff = undefined
