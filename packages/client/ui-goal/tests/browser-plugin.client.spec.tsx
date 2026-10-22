@@ -18,7 +18,7 @@ import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { createAssistantMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
-import type { GoalActivation, GoalId, GoalProjection, GoalView } from '@deepseek-ai/dsh-goal/client'
+import type { GoalActivation, GoalId, GoalProjection, GoalRef, GoalView } from '@deepseek-ai/dsh-goal/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { makeTranslate, RemoteError, stubConfigForm, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -79,9 +79,14 @@ async function bench(options: {
   failWith?: RemoteFailure
   initialOpen?: SessionFixture['initialOpen']
   snapshot?: SessionFixture['snapshot']
+  delayCreate?: boolean
 } = {}) {
   const ctx = new Context()
   const calls: { method: string; args: unknown[] }[] = []
+  let resolveCreateDeferred: (() => void) | undefined
+  const createDeferred: Promise<{ ok: true; value: { ref: GoalRef } }> = new Promise((resolve) => {
+    resolveCreateDeferred = () => { resolve({ ok: true, value: { ref: { id: GOAL_ID, revision: 3 } } }) }
+  })
   const sessions = new TestSessions(async (action) => { await action() }, ctx)
   onTestFinished(async () => {
     await sessions.disposeScopes()
@@ -120,7 +125,12 @@ async function bench(options: {
     pause: answer(`${prefix}/pause`, { ref }),
     resume: answer(`${prefix}/resume`, { ref }),
     clear: answer(`${prefix}/clear`, ref),
-    create: answer(`${prefix}/create`, { ref }),
+    create: options.delayCreate
+      ? (...args: unknown[]) => {
+        calls.push({ method: `${prefix}/create`, args })
+        return createDeferred
+      }
+      : answer(`${prefix}/create`, { ref }),
     complete: answer(`${prefix}/complete`, { ref }),
   })
   let activeGoals: ReturnType<typeof goals> | undefined = goals('goals')
@@ -179,6 +189,7 @@ async function bench(options: {
     sessions,
     owner,
     goalSettings,
+    resolveCreate: () => resolveCreateDeferred?.(),
     emitActivation: remote.emitActivation.bind(remote),
     definitions: () => conversationEvents.entries(),
     remountGoals: () => { activeGoals = goals('remounted-goals') },
@@ -363,6 +374,25 @@ describe('ui-goal browser plugin', () => {
     const complete = b.calls.find(call => call.method === 'goals/complete')
     expect(complete?.args[0]).toBe('s1')
     expect(complete?.args[1]).toEqual({ id: 'g-1', revision: 3 })
+    unsubscribe()
+  })
+
+  it('completes the goal even when the answer lands before creation settles', async () => {
+    const b = await bench({ delayCreate: true })
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
+    injected.setAutoGoal(true)
+    await b.splicePrompt([userMessage('answer me')])
+    await b.appendAssistantMessage()
+    // The answer arrives while the create chain is still in flight.
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
+    })
+    b.resolveCreate()
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/complete')).toBe(true)
+    })
     unsubscribe()
   })
 

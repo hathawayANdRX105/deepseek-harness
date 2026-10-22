@@ -159,6 +159,10 @@ export function createAutoGoalSource(deps: AutoGoalSourceDeps): ObservableSnapsh
   let subscriptions = 0
   let disposers: readonly (() => void)[] = []
   let pendingGoal: GoalRef | undefined
+  // An answer may land before the goal creation settles (a slow create chain
+  // racing a fast model turn); the flag completes the goal as soon as its ref
+  // exists instead of leaving it armed after the answer.
+  let answerPending = false
   const listeners = new Set<() => void>()
 
   const publish = (next: boolean): void => {
@@ -170,14 +174,25 @@ export function createAutoGoalSource(deps: AutoGoalSourceDeps): ObservableSnapsh
   const onPrompt = (objective: string): void => {
     if (!enabled) return
     pendingGoal = undefined
-    void deps.armGoal(objective).then((ref) => { pendingGoal = ref })
+    answerPending = false
+    void deps.armGoal(objective).then((ref) => {
+      pendingGoal = ref
+      if (ref !== undefined && answerPending) {
+        answerPending = false
+        void deps.completeGoal(ref)
+      }
+    })
   }
 
   const onAssistantAnswer = (): void => {
-    if (!enabled || pendingGoal === undefined) return
-    const ref = pendingGoal
-    pendingGoal = undefined
-    void deps.completeGoal(ref)
+    if (!enabled) return
+    if (pendingGoal !== undefined) {
+      const ref = pendingGoal
+      pendingGoal = undefined
+      void deps.completeGoal(ref)
+    } else {
+      answerPending = true
+    }
   }
 
   const start = (): void => {
