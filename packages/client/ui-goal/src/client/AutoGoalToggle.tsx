@@ -7,6 +7,7 @@
  * injected hook source.
  */
 
+import { useEffect } from 'react'
 import { Button, IconGoalOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls the ui-conversation SlotMap merge (the input.dock seat).
@@ -21,8 +22,16 @@ export type AutoGoalToggleProps =
   & PropsLocale<'goal'>
 
 /** Dock entry: a button whose stroke marks the enabled state. */
-export function AutoGoalToggle({ useAutoGoal, setAutoGoal, t }: AutoGoalToggleProps) {
+export function AutoGoalToggle({
+  useAutoGoal, setAutoGoal, subscribePrompts, armGoal, t,
+}: AutoGoalToggleProps) {
   const enabled = useAutoGoal(s => s)
+  useEffect(() => subscribePrompts((objective) => {
+    // The preference is read when the prompt arrives, so a prompt that
+    // arrives before the button is pressed creates no goal.
+    if (!useAutoGoal(s => s)) return
+    armGoal(objective)
+  }), [subscribePrompts, armGoal, useAutoGoal])
   return (
     <div className={css.dock} data-auto-goal-toggle>
       <Button

@@ -15,7 +15,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
+import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type { GoalActivation, GoalId, GoalProjection, GoalView } from '@deepseek-ai/dsh-goal/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { makeTranslate, RemoteError, stubConfigForm, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
@@ -33,6 +34,32 @@ afterEach(cleanup)
 
 const sid = (k: string): SessionId => k as SessionId
 const GOAL_ID = 'g-1' as GoalId
+
+/** One composer prompt as the Host records it in the inbox. */
+function userMessage(text: string): UserMessage {
+  return {
+    id: 'm-1',
+    role: 'user',
+    content: [{ type: 'text', text }],
+    source: { kind: 'user' },
+  } as unknown as UserMessage
+}
+
+/** Give the watcher time to observe a prompt that must not create a goal. */
+async function settle(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 50))
+}
+
+/** Render the toggle with the plugin's own injected face. */
+function renderToggle(injected: AutoGoalToggleInjected): void {
+  const autoGoal = injected.hooks.autoGoal
+  const props = {
+    useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
+    ...injected,
+    t: makeTranslate(zh, commonZh),
+  } as unknown as Parameters<typeof AutoGoalToggle>[0]
+  render(<AutoGoalToggle {...props} />)
+}
 
 function makeProjection(revision = 3): GoalProjection {
   return {
@@ -97,6 +124,7 @@ async function bench(options: {
     pause: answer(`${prefix}/pause`, { ref }),
     resume: answer(`${prefix}/resume`, { ref }),
     clear: answer(`${prefix}/clear`, ref),
+    create: answer(`${prefix}/create`, { ref }),
   })
   let activeGoals: ReturnType<typeof goals> | undefined = goals('goals')
   class RemoteService extends Service {
@@ -133,6 +161,7 @@ async function bench(options: {
     get pause() { return activeGoals?.pause },
     get resume() { return activeGoals?.resume },
     get clear() { return activeGoals?.clear },
+    get create() { return activeGoals?.create },
   })
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
@@ -166,7 +195,22 @@ async function bench(options: {
       }
     },
     autoGoalEntry: () => ctx.slots.entries('conversation.input.dock').find(entry => entry.options.id === 'goal-auto'),
+    autoGoalInject: () => {
+      const entry = ctx.slots.entries('conversation.input.dock').find(entry => entry.options.id === 'goal-auto')
+      const inject = entry?.inject as unknown as ((sessionId: SessionId) => AutoGoalToggleInjected) | undefined
+      if (inject === undefined) throw new Error('ui-goal: the auto-goal dock entry is not registered')
+      return inject(sid('s1'))
+    },
     chatEntry: () => ctx.slots.entries('conversation.chat.node')[0],
+    splicePrompt: (messages: UserMessage[], seq = 1) => sessions.appendEvent('s1', {
+      type: 'event',
+      event: {
+        type: 'agent/inbox/spliced',
+        seq: seq as SessionSeq,
+        time: seq,
+        data: { target: 'next-turn', start: 0, inserted: messages },
+      },
+    }),
   }
 }
 
@@ -257,6 +301,66 @@ describe('ui-goal browser plugin', () => {
     expect(injected.hooks.autoGoal.getSnapshot()).toBe(true)
     injected.setAutoGoal(false)
     expect(b.goalSettings.set).toHaveBeenLastCalledWith('autoGoal', false)
+  })
+
+  it('creates the session goal from a composer prompt while the preference is armed', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    renderToggle(injected)
+    injected.setAutoGoal(true)
+    await b.splicePrompt([userMessage('ship the release notes')])
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
+    })
+    const create = b.calls.find(call => call.method === 'goals/create')
+    expect(create?.args[0]).toBe('s1')
+    expect(create?.args[1]).toEqual({ objective: 'ship the release notes' })
+  })
+
+  it('clears a goal that is not complete before creating the new one', async () => {
+    const b = await bench({ projection: makeProjection() })
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    renderToggle(injected)
+    injected.setAutoGoal(true)
+    await b.splicePrompt([userMessage('second task')])
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/clear')).toBe(true)
+    })
+    const clear = b.calls.find(call => call.method === 'goals/clear')
+    expect(clear?.args[1]).toEqual({ id: 'g-1', revision: 3 })
+  })
+
+  it('creates no goal for a prompt while the preference is off', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    renderToggle(b.autoGoalInject())
+    await b.splicePrompt([userMessage('no goal wanted')])
+    await settle()
+    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+  })
+
+  it('creates no goal for a message that is not a composer prompt', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    renderToggle(injected)
+    injected.setAutoGoal(true)
+    await b.splicePrompt([{ ...userMessage('round input'), source: { kind: 'goal' } } as unknown as UserMessage])
+    await settle()
+    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+  })
+
+  it('creates no goal for a prompt without text', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    renderToggle(injected)
+    injected.setAutoGoal(true)
+    await b.splicePrompt([userMessage('   ')])
+    await settle()
+    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
   })
 
   it('verbs read the CAS ref from the current projected value at call time', async () => {
@@ -416,6 +520,8 @@ describe('AutoGoalToggle', () => {
     const props = {
       useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
       setAutoGoal,
+      subscribePrompts: () => () => {},
+      armGoal: () => {},
       t,
     } as unknown as Parameters<typeof AutoGoalToggle>[0]
     const rendered = render(<AutoGoalToggle {...props} />)
@@ -434,6 +540,8 @@ describe('AutoGoalToggle', () => {
     const props = {
       useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
       setAutoGoal,
+      subscribePrompts: () => () => {},
+      armGoal: () => {},
       t,
     } as unknown as Parameters<typeof AutoGoalToggle>[0]
     render(<AutoGoalToggle {...props} />)

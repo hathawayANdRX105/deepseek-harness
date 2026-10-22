@@ -37,6 +37,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { AUTO_GOAL_FIELD, GOAL_SETTINGS_NAMESPACE, type GoalSettings } from '../goal-settings.ts'
 import type { AutoGoalToggleInjected, GoalActionResult, GoalBarInjected } from './slots.ts'
 import { createGoalActivationSource } from './activation-source.ts'
+import { armGoal, subscribePrompts } from './auto-goal.ts'
 import { GoalDock } from './GoalBar.tsx'
 import { AutoGoalToggle } from './AutoGoalToggle.tsx'
 import { GoalCommandInputView } from './GoalCommandInputView.tsx'
@@ -168,13 +169,15 @@ export function apply(ctx: ClientContext): void {
     id: 'goal-auto',
     order: -10,
     locale: NS,
-    inject: (): AutoGoalToggleInjected => ({
+    inject: (sessionId: SessionId): AutoGoalToggleInjected => ({
       hooks: { autoGoal },
       setAutoGoal: (enabled) => {
         if (autoGoal.getSnapshot() === enabled) return
         autoGoal.set(enabled)
         void goalSettingsForm.set(AUTO_GOAL_FIELD, enabled)
       },
+      subscribePrompts: onPrompt => subscribePrompts(ctx, sessionId, onPrompt),
+      armGoal: (objective) => { void armGoal(ctx, sessionId, objective) },
     }),
   }, AutoGoalToggle))
 }

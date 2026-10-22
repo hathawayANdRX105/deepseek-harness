@@ -75,4 +75,15 @@ export interface AutoGoalToggleInjected {
    * @param enabled - the requested toggle state.
    */
   readonly setAutoGoal: (enabled: boolean) => void
+  /**
+   * Watch the Session's event window for composer prompts.
+   * @param onPrompt - receives the objective of every composer prompt.
+   * @returns a disposer that stops the watch.
+   */
+  readonly subscribePrompts: (onPrompt: (objective: string) => void) => () => void
+  /**
+   * Make the prompt the Session's goal, replacing a goal that is not complete.
+   * @param objective - the goal objective text.
+   */
+  readonly armGoal: (objective: string) => void
 }

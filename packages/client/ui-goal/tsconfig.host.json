@@ -1,7 +1,7 @@
 {
   // Node face: the plugin entry and its shared settings schema. Kept apart from
-  // the client face because Host Context merges (agent, settings, session)
-  // conflict with the Client session merge inside one program.
+  // the client face because the Host Context merges (settings, session) conflict
+  // with the Client session merge inside one program.
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
@@ -21,15 +21,6 @@
     },
     {
       "path": "../../settings/settings"
-    },
-    {
-      "path": "../../core/agent"
-    },
-    {
-      "path": "../../goal/goal"
-    },
-    {
-      "path": "../../llm/llm"
     }
   ]
 }
