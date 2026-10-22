@@ -16,6 +16,7 @@ import { afterEach, beforeEach } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
+import { createAssistantMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type { GoalActivation, GoalId, GoalProjection, GoalView } from '@deepseek-ai/dsh-goal/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
@@ -120,6 +121,7 @@ async function bench(options: {
     resume: answer(`${prefix}/resume`, { ref }),
     clear: answer(`${prefix}/clear`, ref),
     create: answer(`${prefix}/create`, { ref }),
+    complete: answer(`${prefix}/complete`, { ref }),
   })
   let activeGoals: ReturnType<typeof goals> | undefined = goals('goals')
   class RemoteService extends Service {
@@ -157,6 +159,7 @@ async function bench(options: {
     get resume() { return activeGoals?.resume },
     get clear() { return activeGoals?.clear },
     get create() { return activeGoals?.create },
+    get complete() { return activeGoals?.complete },
   })
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
@@ -204,6 +207,24 @@ async function bench(options: {
         seq: seq as SessionSeq,
         time: seq,
         data: { target: 'next-turn', start: 0, inserted: messages },
+      },
+    }),
+    appendAssistantMessage: (seq = 2) => sessions.appendEvent('s1', {
+      type: 'event',
+      event: {
+        type: 'assistant/message',
+        seq: seq as SessionSeq,
+        time: seq,
+        surfaceOp: 'append',
+        data: {
+          turn: 1,
+          step: 1,
+          message: createAssistantMessage({
+            content: [{ type: 'text', text: 'done' }],
+            source: { provider: 'mock', model: 'mock' },
+          }),
+          stream: [],
+        },
       },
     }),
   }
@@ -325,6 +346,26 @@ describe('ui-goal browser plugin', () => {
     unsubscribe()
   })
 
+  it('completes the created goal when the agent answers', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
+    injected.setAutoGoal(true)
+    await b.splicePrompt([userMessage('answer me')])
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
+    })
+    await b.appendAssistantMessage()
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/complete')).toBe(true)
+    })
+    const complete = b.calls.find(call => call.method === 'goals/complete')
+    expect(complete?.args[0]).toBe('s1')
+    expect(complete?.args[1]).toEqual({ id: 'g-1', revision: 3 })
+    unsubscribe()
+  })
+
   it('clears a goal that is not complete before creating the new one', async () => {
     const b = await bench({ projection: makeProjection() })
     await b.fiber.await()
@@ -337,6 +378,20 @@ describe('ui-goal browser plugin', () => {
     })
     const clear = b.calls.find(call => call.method === 'goals/clear')
     expect(clear?.args[1]).toEqual({ id: 'g-1', revision: 3 })
+    unsubscribe()
+  })
+
+  it('ignores prompts that arrived before the preference was armed', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    // A prompt already sits in the window before the source starts, so it
+    // must never become the goal.
+    await b.splicePrompt([userMessage('old message')])
+    const injected = b.autoGoalInject()
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
+    injected.setAutoGoal(true)
+    await settle()
+    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
     unsubscribe()
   })
 
