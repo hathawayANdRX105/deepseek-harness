@@ -11,6 +11,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type { GoalRef } from '@deepseek-ai/dsh-goal/client'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 
 /** Join the text blocks of one admitted prompt into the goal objective. */
 function objectiveOf(message: UserMessage): string {
@@ -85,4 +86,66 @@ export function subscribePrompts(
       }
     }
   })
+}
+
+/** Live inputs for one Session's auto-goal source. */
+export interface AutoGoalSourceDeps {
+  /** The browser-held preference and its listener surface. */
+  readonly enabled: ObservableSnapshot<boolean>
+  /** Make one composer prompt the Session's goal. */
+  readonly armGoal: (objective: string) => void
+  /** Watch the Session's durable event window for composer prompts. */
+  readonly subscribePrompts: (onPrompt: (objective: string) => void) => () => void
+}
+
+/**
+ * Create one registrant-private auto-goal source. The source subscribes to
+ * the Session's event window and the preference only while a framework hook
+ * observes it, so unmount releases both listeners; the preference is read at
+ * the moment a prompt arrives, so a prompt that arrives before the button is
+ * pressed creates no goal.
+ * @param deps - preference, event window, and arming action inputs.
+ * @returns stable snapshot source consumed by `useAutoGoal`.
+ */
+export function createAutoGoalSource(deps: AutoGoalSourceDeps): ObservableSnapshot<boolean> {
+  let enabled = deps.enabled.getSnapshot()
+  let subscriptions = 0
+  let disposers: readonly (() => void)[] = []
+  const listeners = new Set<() => void>()
+
+  const publish = (next: boolean): void => {
+    if (next === enabled) return
+    enabled = next
+    for (const listener of listeners) listener()
+  }
+
+  const onPrompt = (objective: string): void => {
+    if (enabled) deps.armGoal(objective)
+  }
+
+  const start = (): void => {
+    disposers = [
+      deps.enabled.subscribe(() => { publish(deps.enabled.getSnapshot()) }),
+      deps.subscribePrompts(onPrompt),
+    ]
+  }
+
+  const stop = (): void => {
+    for (const dispose of disposers) dispose()
+    disposers = []
+  }
+
+  return {
+    getSnapshot: () => enabled,
+    subscribe(listener) {
+      listeners.add(listener)
+      if (subscriptions === 0) start()
+      subscriptions++
+      return () => {
+        listeners.delete(listener)
+        subscriptions--
+        if (subscriptions === 0) stop()
+      }
+    },
+  }
 }

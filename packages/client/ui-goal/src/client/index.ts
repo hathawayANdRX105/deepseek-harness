@@ -36,7 +36,7 @@ import type { GoalProjection, GoalRef } from '@deepseek-ai/dsh-goal/client'
 import { GOAL_SETTINGS_NAMESPACE, type GoalSettings } from '../goal-settings.ts'
 import type { AutoGoalToggleInjected, GoalActionResult, GoalBarInjected } from './slots.ts'
 import { createGoalActivationSource } from './activation-source.ts'
-import { armGoal, subscribePrompts } from './auto-goal.ts'
+import { armGoal, createAutoGoalSource, subscribePrompts } from './auto-goal.ts'
 import { createAutoGoalPreference } from './auto-goal-preference.ts'
 import { GoalDock } from './GoalBar.tsx'
 import { AutoGoalToggle } from './AutoGoalToggle.tsx'
@@ -159,7 +159,6 @@ export function apply(ctx: ClientContext): void {
   // the `ui-goal` namespace.
   const goalSettingsForm = ctx.configForms.get<GoalSettings>(GOAL_SETTINGS_NAMESPACE)
   const preference = createAutoGoalPreference(goalSettingsForm)
-  const autoGoal = preference.value
 
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
     name: 'conversation.input.dock',
@@ -167,10 +166,14 @@ export function apply(ctx: ClientContext): void {
     order: -10,
     locale: NS,
     inject: (sessionId: SessionId): AutoGoalToggleInjected => ({
-      hooks: { autoGoal },
+      hooks: {
+        autoGoal: createAutoGoalSource({
+          enabled: preference.value,
+          armGoal: (objective) => { void armGoal(ctx, sessionId, objective) },
+          subscribePrompts: onPrompt => subscribePrompts(ctx, sessionId, onPrompt),
+        }),
+      },
       setAutoGoal: (enabled) => { preference.set(enabled) },
-      subscribePrompts: onPrompt => subscribePrompts(ctx, sessionId, onPrompt),
-      armGoal: (objective) => { void armGoal(ctx, sessionId, objective) },
     }),
   }, AutoGoalToggle))
 }

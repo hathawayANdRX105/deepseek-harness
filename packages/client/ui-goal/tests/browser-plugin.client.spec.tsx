@@ -56,17 +56,6 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-/** Render the toggle with the plugin's own injected face. */
-function renderToggle(injected: AutoGoalToggleInjected): void {
-  const autoGoal = injected.hooks.autoGoal
-  const props = {
-    useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
-    ...injected,
-    t: makeTranslate(zh, commonZh),
-  } as unknown as Parameters<typeof AutoGoalToggle>[0]
-  render(<AutoGoalToggle {...props} />)
-}
-
 function makeProjection(revision = 3): GoalProjection {
   return {
     goal: {
@@ -299,6 +288,7 @@ describe('ui-goal browser plugin', () => {
     await b.fiber.await()
     const autoGoalInject = b.autoGoalEntry()!.inject as unknown as ((sessionId: SessionId) => AutoGoalToggleInjected)
     const injected = autoGoalInject(sid('s1'))
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     expect(injected.hooks.autoGoal.getSnapshot()).toBe(false)
     injected.setAutoGoal(true)
     expect(injected.hooks.autoGoal.getSnapshot()).toBe(true)
@@ -307,6 +297,7 @@ describe('ui-goal browser plugin', () => {
     injected.setAutoGoal(false)
     expect(b.goalSettings.set).toHaveBeenLastCalledWith('autoGoal', false)
     expect(window.localStorage.getItem('dsh.ui-goal.autoGoal')).toBe('false')
+    unsubscribe()
   })
 
   it('restores the preference from local storage on the next load', async () => {
@@ -321,7 +312,8 @@ describe('ui-goal browser plugin', () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
-    renderToggle(injected)
+    // The framework hook observes the source; the event window opens with it.
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     injected.setAutoGoal(true)
     await b.splicePrompt([userMessage('ship the release notes')])
     await waitFor(() => {
@@ -330,13 +322,14 @@ describe('ui-goal browser plugin', () => {
     const create = b.calls.find(call => call.method === 'goals/create')
     expect(create?.args[0]).toBe('s1')
     expect(create?.args[1]).toEqual({ objective: 'ship the release notes' })
+    unsubscribe()
   })
 
   it('clears a goal that is not complete before creating the new one', async () => {
     const b = await bench({ projection: makeProjection() })
     await b.fiber.await()
     const injected = b.autoGoalInject()
-    renderToggle(injected)
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     injected.setAutoGoal(true)
     await b.splicePrompt([userMessage('second task')])
     await waitFor(() => {
@@ -344,35 +337,52 @@ describe('ui-goal browser plugin', () => {
     })
     const clear = b.calls.find(call => call.method === 'goals/clear')
     expect(clear?.args[1]).toEqual({ id: 'g-1', revision: 3 })
+    unsubscribe()
   })
 
   it('creates no goal for a prompt while the preference is off', async () => {
     const b = await bench()
     await b.fiber.await()
-    renderToggle(b.autoGoalInject())
+    const injected = b.autoGoalInject()
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     await b.splicePrompt([userMessage('no goal wanted')])
     await settle()
     expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    unsubscribe()
   })
 
   it('creates no goal for a message that is not a composer prompt', async () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
-    renderToggle(injected)
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     injected.setAutoGoal(true)
     await b.splicePrompt([{ ...userMessage('round input'), source: { kind: 'goal' } } as unknown as UserMessage])
     await settle()
     expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    unsubscribe()
   })
 
   it('creates no goal for a prompt without text', async () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
-    renderToggle(injected)
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     injected.setAutoGoal(true)
     await b.splicePrompt([userMessage('   ')])
+    await settle()
+    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    unsubscribe()
+  })
+
+  it('stops arming goals once the framework hook stops observing', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
+    injected.setAutoGoal(true)
+    unsubscribe()
+    await b.splicePrompt([userMessage('no listener anymore')])
     await settle()
     expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
   })
@@ -534,8 +544,6 @@ describe('AutoGoalToggle', () => {
     const props = {
       useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
       setAutoGoal,
-      subscribePrompts: () => () => {},
-      armGoal: () => {},
       t,
     } as unknown as Parameters<typeof AutoGoalToggle>[0]
     const rendered = render(<AutoGoalToggle {...props} />)
@@ -554,8 +562,6 @@ describe('AutoGoalToggle', () => {
     const props = {
       useAutoGoal: (selector: (value: boolean) => unknown) => selector(autoGoal.getSnapshot()),
       setAutoGoal,
-      subscribePrompts: () => () => {},
-      armGoal: () => {},
       t,
     } as unknown as Parameters<typeof AutoGoalToggle>[0]
     render(<AutoGoalToggle {...props} />)

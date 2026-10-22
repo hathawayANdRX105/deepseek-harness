@@ -67,7 +67,11 @@ export type GoalBarInjected = GoalBarActions & GoalActivationInjected
 export interface AutoGoalToggleInjected {
   /** Registrant-private observable source bound by the slot renderer. */
   readonly hooks: {
-    /** Whether every composer prompt should become the session's goal. */
+    /**
+     * Whether every composer prompt should become the session's goal. While
+     * a framework hook observes this source, it also listens to the
+     * Session's event window and arms the goal for every armed prompt.
+     */
     readonly autoGoal: ObservableSnapshot<boolean>
   }
   /**
@@ -75,15 +79,4 @@ export interface AutoGoalToggleInjected {
    * @param enabled - the requested toggle state.
    */
   readonly setAutoGoal: (enabled: boolean) => void
-  /**
-   * Watch the Session's event window for composer prompts.
-   * @param onPrompt - receives the objective of every composer prompt.
-   * @returns a disposer that stops the watch.
-   */
-  readonly subscribePrompts: (onPrompt: (objective: string) => void) => () => void
-  /**
-   * Make the prompt the Session's goal, replacing a goal that is not complete.
-   * @param objective - the goal objective text.
-   */
-  readonly armGoal: (objective: string) => void
 }
