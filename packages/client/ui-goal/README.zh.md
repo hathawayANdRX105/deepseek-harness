@@ -51,7 +51,7 @@ composer 上下文堆栈的第一张卡片是 `goal` 按钮（位于 Todo、Goal
 
 激活状态读取持有临时的 `goalActivation` 客户端引用，仅在该会话首次历史打开成功后发送 `goals.get`。binding 已失效或打开失败时不发送 RPC。读取被拒绝时记录错误，不改变投影中的目标或最后一次已知激活状态；读取结束时释放临时引用。
 
-本包现在包含两个编译器面。node 半边声明 `ui-goal` 设置命名空间中 `autoGoal` 这个 volatile Config 字段，并把自己的实例从自动生成的 Settings 页面中排除。行为由浏览器半边负责：它把偏好保存在本地存储并镜像到 Host 的表单，同时观察会话的持久事件窗口。prompt 依据 Host 记录的同一个 `agent/inbox/spliced` 事件识别，因此 goal 轮次、指令与子 agent 消息都不会被算作 prompt；目标本身经生成的 goal Remote API 创建，创建新目标前会先清除尚未完成的既有目标。
+本包现在包含两个编译器面。node 半边声明 `ui-goal` 设置命名空间中 `autoGoal` 这个 volatile Config 字段，并把自己的实例从自动生成的 Settings 页面中排除。行为由浏览器半边负责：它把偏好保存在本地存储并镜像到 Host 的表单，同时观察会话的持久事件窗口。prompt 依据 Host 记录的同一个 `agent/inbox/spliced` 事件识别，因此 goal 轮次、指令与子 agent 消息都不会被算作 prompt；目标本身通过执行与用户手动输入相同的 `/goal` 命令来创建——新目标执行 `/goal <objective>`，已有目标则执行 `/goal edit <objective>` 把该 prompt 作为当前目标的新目标文本。随后由 goal 系统驱动 agent，agent 会读取目标并通过自己的工具调用完成或清除它。
 
 续跑由 goal 轮次驱动方负责。本包创建的目标在创建时即处于 armed 状态，因此驱动方会自行认领轮次；之后再来的 composer prompt 会清除该目标并创建另一个，驱动方随即接管新目标。goal 轮次运行期间到达的 prompt 会把该轮标记为竞争态，该轮结束后驱动方恢复续跑。
 
