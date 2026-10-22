@@ -33,11 +33,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: the `goal` SessionProjectionMap key merge (single source, the domain's pure outlet).
 import type { GoalProjection, GoalRef } from '@deepseek-ai/dsh-goal/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { AUTO_GOAL_FIELD, GOAL_SETTINGS_NAMESPACE, type GoalSettings } from '../goal-settings.ts'
+import { GOAL_SETTINGS_NAMESPACE, type GoalSettings } from '../goal-settings.ts'
 import type { AutoGoalToggleInjected, GoalActionResult, GoalBarInjected } from './slots.ts'
 import { createGoalActivationSource } from './activation-source.ts'
 import { armGoal, subscribePrompts } from './auto-goal.ts'
+import { createAutoGoalPreference } from './auto-goal-preference.ts'
 import { GoalDock } from './GoalBar.tsx'
 import { AutoGoalToggle } from './AutoGoalToggle.tsx'
 import { GoalCommandInputView } from './GoalCommandInputView.tsx'
@@ -154,15 +154,12 @@ export function apply(ctx: ClientContext): void {
     },
   }, GoalDock))
 
-  // Auto-goal preference: one live store per browser shell, mirrored from the
-  // Host user-settings document and written back through the shared form.
+  // Auto-goal preference: the browser holds the live value in local storage
+  // and mirrors it into the Host's settings document when the Host serves
+  // the `ui-goal` namespace.
   const goalSettingsForm = ctx.configForms.get<GoalSettings>(GOAL_SETTINGS_NAMESPACE)
-  const autoGoal = createSnapshotStore<boolean>(goalSettingsForm.getSnapshot().value?.autoGoal ?? false)
-  const adoptAutoGoal = (): void => {
-    const value = goalSettingsForm.getSnapshot().value?.autoGoal
-    if (value !== autoGoal.getSnapshot()) autoGoal.set(value ?? false)
-  }
-  ctx.effect(() => goalSettingsForm.subscribe(adoptAutoGoal), 'ui-goal: auto-goal preference mirror')
+  const preference = createAutoGoalPreference(goalSettingsForm)
+  const autoGoal = preference.value
 
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
     name: 'conversation.input.dock',
@@ -171,11 +168,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: (sessionId: SessionId): AutoGoalToggleInjected => ({
       hooks: { autoGoal },
-      setAutoGoal: (enabled) => {
-        if (autoGoal.getSnapshot() === enabled) return
-        autoGoal.set(enabled)
-        void goalSettingsForm.set(AUTO_GOAL_FIELD, enabled)
-      },
+      setAutoGoal: (enabled) => { preference.set(enabled) },
       subscribePrompts: onPrompt => subscribePrompts(ctx, sessionId, onPrompt),
       armGoal: (objective) => { void armGoal(ctx, sessionId, objective) },
     }),

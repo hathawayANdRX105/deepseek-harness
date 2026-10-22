@@ -12,7 +12,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
@@ -49,6 +49,12 @@ function userMessage(text: string): UserMessage {
 async function settle(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 50))
 }
+
+// The auto-goal preference persists in local storage, so every test starts from
+// the same state.
+beforeEach(() => {
+  window.localStorage.clear()
+})
 
 /** Render the toggle with the plugin's own injected face. */
 function renderToggle(injected: AutoGoalToggleInjected): void {
@@ -288,7 +294,7 @@ describe('ui-goal browser plugin', () => {
     expect(b.chatEntry()?.locale).toBe('goal')
   })
 
-  it('mirrors the Host auto-goal preference into the dock entry and publishes toggle writes', async () => {
+  it('keeps the preference in local storage and mirrors it into the Host form', async () => {
     const b = await bench()
     await b.fiber.await()
     const autoGoalInject = b.autoGoalEntry()!.inject as unknown as ((sessionId: SessionId) => AutoGoalToggleInjected)
@@ -297,10 +303,18 @@ describe('ui-goal browser plugin', () => {
     injected.setAutoGoal(true)
     expect(injected.hooks.autoGoal.getSnapshot()).toBe(true)
     expect(b.goalSettings.set).toHaveBeenCalledWith('autoGoal', true)
-    b.goalSettings.publish({ value: { autoGoal: true } })
-    expect(injected.hooks.autoGoal.getSnapshot()).toBe(true)
+    expect(window.localStorage.getItem('dsh.ui-goal.autoGoal')).toBe('true')
     injected.setAutoGoal(false)
     expect(b.goalSettings.set).toHaveBeenLastCalledWith('autoGoal', false)
+    expect(window.localStorage.getItem('dsh.ui-goal.autoGoal')).toBe('false')
+  })
+
+  it('restores the preference from local storage on the next load', async () => {
+    window.localStorage.setItem('dsh.ui-goal.autoGoal', 'true')
+    const b = await bench()
+    await b.fiber.await()
+    const autoGoalInject = b.autoGoalEntry()!.inject as unknown as ((sessionId: SessionId) => AutoGoalToggleInjected)
+    expect(autoGoalInject(sid('s1')).hooks.autoGoal.getSnapshot()).toBe(true)
   })
 
   it('creates the session goal from a composer prompt while the preference is armed', async () => {
