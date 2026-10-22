@@ -36,9 +36,7 @@ import type { GoalProjection, GoalRef } from '@deepseek-ai/dsh-goal/client'
 import { GOAL_SETTINGS_NAMESPACE, type GoalSettings } from '../goal-settings.ts'
 import type { AutoGoalToggleInjected, GoalActionResult, GoalBarInjected } from './slots.ts'
 import { createGoalActivationSource } from './activation-source.ts'
-import {
-  armGoal, completeGoal, createAutoGoalSource, subscribeAutoGoalEvents,
-} from './auto-goal.ts'
+import { applyGoalCommand, createAutoGoalSource, subscribePrompts } from './auto-goal.ts'
 import { createAutoGoalPreference } from './auto-goal-preference.ts'
 import { GoalDock } from './GoalBar.tsx'
 import { AutoGoalToggle } from './AutoGoalToggle.tsx'
@@ -171,10 +169,8 @@ export function apply(ctx: ClientContext): void {
       hooks: {
         autoGoal: createAutoGoalSource({
           enabled: preference.value,
-          armGoal: objective => armGoal(ctx, sessionId, objective),
-          completeGoal: ref => completeGoal(ctx, sessionId, ref),
-          subscribeEvents: (onPrompt, onAssistantAnswer) =>
-            subscribeAutoGoalEvents(ctx, sessionId, onPrompt, onAssistantAnswer),
+          applyGoalCommand: (objective) => { void applyGoalCommand(ctx, sessionId, objective) },
+          subscribePrompts: onPrompt => subscribePrompts(ctx, sessionId, onPrompt),
         }),
       },
       setAutoGoal: (enabled) => { preference.set(enabled) },

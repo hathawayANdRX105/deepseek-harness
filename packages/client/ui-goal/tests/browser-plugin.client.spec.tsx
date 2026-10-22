@@ -16,9 +16,8 @@ import { afterEach, beforeEach } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
-import { createAssistantMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
-import type { GoalActivation, GoalId, GoalProjection, GoalRef, GoalView } from '@deepseek-ai/dsh-goal/client'
+import type { GoalActivation, GoalId, GoalProjection, GoalView } from '@deepseek-ai/dsh-goal/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { makeTranslate, RemoteError, stubConfigForm, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -79,14 +78,9 @@ async function bench(options: {
   failWith?: RemoteFailure
   initialOpen?: SessionFixture['initialOpen']
   snapshot?: SessionFixture['snapshot']
-  delayCreate?: boolean
 } = {}) {
   const ctx = new Context()
   const calls: { method: string; args: unknown[] }[] = []
-  let resolveCreateDeferred: (() => void) | undefined
-  const createDeferred: Promise<{ ok: true; value: { ref: GoalRef } }> = new Promise((resolve) => {
-    resolveCreateDeferred = () => { resolve({ ok: true, value: { ref: { id: GOAL_ID, revision: 3 } } }) }
-  })
   const sessions = new TestSessions(async (action) => { await action() }, ctx)
   onTestFinished(async () => {
     await sessions.disposeScopes()
@@ -125,15 +119,12 @@ async function bench(options: {
     pause: answer(`${prefix}/pause`, { ref }),
     resume: answer(`${prefix}/resume`, { ref }),
     clear: answer(`${prefix}/clear`, ref),
-    create: options.delayCreate
-      ? (...args: unknown[]) => {
-        calls.push({ method: `${prefix}/create`, args })
-        return createDeferred
-      }
-      : answer(`${prefix}/create`, { ref }),
-    complete: answer(`${prefix}/complete`, { ref }),
+  })
+  const commands = (prefix: string) => ({
+    execute: answer(`${prefix}/execute`, { commandId: 'c-1', result: { kind: 'success', text: 'ok' } }),
   })
   let activeGoals: ReturnType<typeof goals> | undefined = goals('goals')
+  let activeCommands: ReturnType<typeof commands> | undefined = commands('commands')
   class RemoteService extends Service {
     readonly activationListeners = new Set<(event: {
       sessionId: SessionId
@@ -168,8 +159,9 @@ async function bench(options: {
     get pause() { return activeGoals?.pause },
     get resume() { return activeGoals?.resume },
     get clear() { return activeGoals?.clear },
-    get create() { return activeGoals?.create },
-    get complete() { return activeGoals?.complete },
+  })
+  ctx.provide('remote.commands', {
+    get execute() { return activeCommands?.execute },
   })
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
@@ -189,11 +181,12 @@ async function bench(options: {
     sessions,
     owner,
     goalSettings,
-    resolveCreate: () => resolveCreateDeferred?.(),
     emitActivation: remote.emitActivation.bind(remote),
     definitions: () => conversationEvents.entries(),
     remountGoals: () => { activeGoals = goals('remounted-goals') },
     unmountGoals: () => { activeGoals = undefined },
+    remountCommands: () => { activeCommands = commands('remounted-commands') },
+    unmountCommands: () => { activeCommands = undefined },
     entry: () => {
       const entry = ctx.slots.entries('conversation.input.dock').find(entry => entry.options.id === 'goal')
       if (entry === undefined) return undefined
@@ -218,24 +211,6 @@ async function bench(options: {
         seq: seq as SessionSeq,
         time: seq,
         data: { target: 'next-turn', start: 0, inserted: messages },
-      },
-    }),
-    appendAssistantMessage: (seq = 2) => sessions.appendEvent('s1', {
-      type: 'event',
-      event: {
-        type: 'assistant/message',
-        seq: seq as SessionSeq,
-        time: seq,
-        surfaceOp: 'append',
-        data: {
-          turn: 1,
-          step: 1,
-          message: createAssistantMessage({
-            content: [{ type: 'text', text: 'done' }],
-            source: { provider: 'mock', model: 'mock' },
-          }),
-          stream: [],
-        },
       },
     }),
   }
@@ -340,7 +315,7 @@ describe('ui-goal browser plugin', () => {
     expect(autoGoalInject(sid('s1')).hooks.autoGoal.getSnapshot()).toBe(true)
   })
 
-  it('creates the session goal from a composer prompt while the preference is armed', async () => {
+  it('runs the /goal command for a composer prompt while the preference is armed', async () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
@@ -349,72 +324,16 @@ describe('ui-goal browser plugin', () => {
     injected.setAutoGoal(true)
     await b.splicePrompt([userMessage('ship the release notes')])
     await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
+      expect(b.calls.some(call => call.method === 'commands/execute')).toBe(true)
     })
-    const create = b.calls.find(call => call.method === 'goals/create')
-    expect(create?.args[0]).toBe('s1')
-    expect(create?.args[1]).toEqual({ objective: 'ship the release notes' })
+    const execute = b.calls.find(call => call.method === 'commands/execute')
+    expect(execute?.args[0]).toBe('s1')
+    expect(execute?.args[1]).toBe('/goal ship the release notes')
+    expect(execute?.args[2]).toEqual([])
     unsubscribe()
   })
 
-  it('completes the created goal when the agent answers', async () => {
-    const b = await bench()
-    await b.fiber.await()
-    const injected = b.autoGoalInject()
-    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
-    injected.setAutoGoal(true)
-    await b.splicePrompt([userMessage('answer me')])
-    await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
-    })
-    await b.appendAssistantMessage()
-    await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/complete')).toBe(true)
-    })
-    const complete = b.calls.find(call => call.method === 'goals/complete')
-    expect(complete?.args[0]).toBe('s1')
-    expect(complete?.args[1]).toEqual({ id: 'g-1', revision: 3 })
-    unsubscribe()
-  })
-
-  it('completes the goal even when the answer lands before creation settles', async () => {
-    const b = await bench({ delayCreate: true })
-    await b.fiber.await()
-    const injected = b.autoGoalInject()
-    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
-    injected.setAutoGoal(true)
-    await b.splicePrompt([userMessage('answer me')])
-    await b.appendAssistantMessage()
-    // The answer arrives while the create chain is still in flight.
-    await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
-    })
-    b.resolveCreate()
-    await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/complete')).toBe(true)
-    })
-    unsubscribe()
-  })
-
-  it('completes an already-created goal even when the preference turns off before the answer', async () => {
-    const b = await bench()
-    await b.fiber.await()
-    const injected = b.autoGoalInject()
-    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
-    injected.setAutoGoal(true)
-    await b.splicePrompt([userMessage('answer me')])
-    await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
-    })
-    injected.setAutoGoal(false)
-    await b.appendAssistantMessage()
-    await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/complete')).toBe(true)
-    })
-    unsubscribe()
-  })
-
-  it('clears a goal that is not complete before creating the new one', async () => {
+  it('runs /goal edit for a prompt while an unfinished goal stands', async () => {
     const b = await bench({ projection: makeProjection() })
     await b.fiber.await()
     const injected = b.autoGoalInject()
@@ -422,10 +341,10 @@ describe('ui-goal browser plugin', () => {
     injected.setAutoGoal(true)
     await b.splicePrompt([userMessage('second task')])
     await waitFor(() => {
-      expect(b.calls.some(call => call.method === 'goals/clear')).toBe(true)
+      expect(b.calls.some(call => call.method === 'commands/execute')).toBe(true)
     })
-    const clear = b.calls.find(call => call.method === 'goals/clear')
-    expect(clear?.args[1]).toEqual({ id: 'g-1', revision: 3 })
+    const execute = b.calls.find(call => call.method === 'commands/execute')
+    expect(execute?.args[1]).toBe('/goal edit second task')
     unsubscribe()
   })
 
@@ -439,22 +358,22 @@ describe('ui-goal browser plugin', () => {
     const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     injected.setAutoGoal(true)
     await settle()
-    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    expect(b.calls.some(call => call.method === 'commands/execute')).toBe(false)
     unsubscribe()
   })
 
-  it('creates no goal for a prompt while the preference is off', async () => {
+  it('runs no goal command for a prompt while the preference is off', async () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
     const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
     await b.splicePrompt([userMessage('no goal wanted')])
     await settle()
-    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    expect(b.calls.some(call => call.method === 'commands/execute')).toBe(false)
     unsubscribe()
   })
 
-  it('creates no goal for a message that is not a composer prompt', async () => {
+  it('runs no goal command for a message that is not a composer prompt', async () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
@@ -462,11 +381,11 @@ describe('ui-goal browser plugin', () => {
     injected.setAutoGoal(true)
     await b.splicePrompt([{ ...userMessage('round input'), source: { kind: 'goal' } } as unknown as UserMessage])
     await settle()
-    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    expect(b.calls.some(call => call.method === 'commands/execute')).toBe(false)
     unsubscribe()
   })
 
-  it('creates no goal for a prompt without text', async () => {
+  it('runs no goal command for a prompt without text', async () => {
     const b = await bench()
     await b.fiber.await()
     const injected = b.autoGoalInject()
@@ -474,7 +393,7 @@ describe('ui-goal browser plugin', () => {
     injected.setAutoGoal(true)
     await b.splicePrompt([userMessage('   ')])
     await settle()
-    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    expect(b.calls.some(call => call.method === 'commands/execute')).toBe(false)
     unsubscribe()
   })
 
@@ -487,7 +406,7 @@ describe('ui-goal browser plugin', () => {
     unsubscribe()
     await b.splicePrompt([userMessage('no listener anymore')])
     await settle()
-    expect(b.calls.some(call => call.method === 'goals/create')).toBe(false)
+    expect(b.calls.some(call => call.method === 'commands/execute')).toBe(false)
   })
 
   it('verbs read the CAS ref from the current projected value at call time', async () => {
