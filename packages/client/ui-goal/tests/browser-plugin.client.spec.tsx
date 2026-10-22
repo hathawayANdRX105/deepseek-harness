@@ -396,6 +396,24 @@ describe('ui-goal browser plugin', () => {
     unsubscribe()
   })
 
+  it('completes an already-created goal even when the preference turns off before the answer', async () => {
+    const b = await bench()
+    await b.fiber.await()
+    const injected = b.autoGoalInject()
+    const unsubscribe = injected.hooks.autoGoal.subscribe(() => {})
+    injected.setAutoGoal(true)
+    await b.splicePrompt([userMessage('answer me')])
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/create')).toBe(true)
+    })
+    injected.setAutoGoal(false)
+    await b.appendAssistantMessage()
+    await waitFor(() => {
+      expect(b.calls.some(call => call.method === 'goals/complete')).toBe(true)
+    })
+    unsubscribe()
+  })
+
   it('clears a goal that is not complete before creating the new one', async () => {
     const b = await bench({ projection: makeProjection() })
     await b.fiber.await()

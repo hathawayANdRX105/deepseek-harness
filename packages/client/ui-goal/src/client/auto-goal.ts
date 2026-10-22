@@ -185,12 +185,13 @@ export function createAutoGoalSource(deps: AutoGoalSourceDeps): ObservableSnapsh
   }
 
   const onAssistantAnswer = (): void => {
-    if (!enabled) return
+    // A goal already created must finish even if the preference is turned off
+    // before the answer lands; only arming new goals honours the preference.
     if (pendingGoal !== undefined) {
       const ref = pendingGoal
       pendingGoal = undefined
       void deps.completeGoal(ref)
-    } else {
+    } else if (enabled) {
       answerPending = true
     }
   }
