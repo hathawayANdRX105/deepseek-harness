@@ -58,29 +58,9 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
   const content = useRef<{ input: ChatScrollInput; applied: ChatScrollInput | null; opened: boolean }>({
     input, applied: null, opened: false,
   })
-  // A fold larger than the new content leaves bottom room rather than reversing the scrollport.
-  // Growth consumes that room before automatic following advances toward newer content.
-  const cancelFollow = useRef<(() => void) | null>(null)
-  const clearPendingFollow = useCallback(() => {
-    cancelFollow.current?.()
-    cancelFollow.current = null
-  }, [])
-  const cancelPendingFollow = useCallback(() => {
-    clearPendingFollow()
-    // Retain a cancelled wait until this fold ends, so resize cannot reacquire follow ownership.
-    if (viewport.motion.foldActive()) {
-      cancelFollow.current = viewport.motion.onFoldIdle(() => { cancelFollow.current = null })
-    }
-  }, [clearPendingFollow, viewport])
-  const followAfterFold = useCallback(() => {
-    if (cancelFollow.current !== null) return
-    reading.interruptFollow()
-    cancelFollow.current = viewport.motion.onFoldIdle(() => {
-      cancelFollow.current = null
-      viewport.reclaimBelow()
-      if (content.current.input.deferCompletedTurns) reading.followTail('smooth')
-    })
-  }, [reading, viewport])
+  // A fold batch owns layout and scrolling until it lands: at the tail for own input or a following
+  // reader, otherwise with the reader's content still. Growth consumes any room the landing installed.
+  const cancelPendingFollow = useCallback(() => { viewport.motion.cancelInput() }, [viewport])
 
   const processContent = useCallback(() => {
     const current = content.current.input
@@ -106,10 +86,9 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
       return
     }
     if (ownInput) {
-      clearPendingFollow()
       navigation.cancel()
-      if (current.deferCompletedTurns && viewport.motion.foldActive()) followAfterFold()
-      else reading.followTail(current.deferCompletedTurns ? 'smooth' : 'instant')
+      if (current.deferCompletedTurns && reading.followInputFold()) return
+      reading.followTail(current.deferCompletedTurns ? 'smooth' : 'instant')
       return
     }
     if (navigation.contentCommitted()) {
@@ -122,10 +101,10 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
       || current.steeringId !== previous.steeringId || current.submissionId !== previous.submissionId
     if (tipChanged && reading.followingTail) {
       navigation.cancel()
-      if (current.deferCompletedTurns && viewport.motion.foldActive()) followAfterFold()
-      else reading.followTail()
+      if (current.deferCompletedTurns && reading.followInputFold()) return
+      reading.followTail()
     } else navigation.reconcile()
-  }, [viewport, reading, navigation, followAfterFold, clearPendingFollow])
+  }, [reading, navigation])
 
   useLayoutEffect(() => {
     const disconnectViewport = viewport.connect({
@@ -156,9 +135,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
           navigation.reconcile()
           return
         }
-        if (content.current.input.deferCompletedTurns && viewport.motion.foldActive()) {
-          if (!reading.pending && reading.followingTail) followAfterFold()
-        } else reading.onResize()
+        if (!content.current.input.deferCompletedTurns || !viewport.motion.foldActive()) reading.onResize()
         navigation.reconcile()
       },
     })
@@ -167,13 +144,12 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
       processContent()
     })
     return () => {
-      clearPendingFollow()
       disconnectViewport()
       disconnectReading()
       content.current.opened = false
       content.current.applied = null
     }
-  }, [viewport, reading, navigation, processContent, followAfterFold, cancelPendingFollow, clearPendingFollow])
+  }, [viewport, reading, navigation, processContent, cancelPendingFollow])
 
   useLayoutEffect(() => {
     const previous = content.current.input
@@ -185,7 +161,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
     // scrollport and clear `opened`, so stored scroll memory survives and the
     // next activation lands the way a freshly mounted Chat does.
     if (!active) {
-      clearPendingFollow()
+      cancelPendingFollow()
       reading.interruptFollow()
       reading.cancelSampling()
       content.current.opened = false
@@ -207,7 +183,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
   }, [
     viewport, reading, processContent, navigationInput, ready, order, lastKey, lastIsUser, active,
     steeringId, submissionId, running, loadedTurns, chatScroll, deferCompletedTurns, transcriptView,
-    cancelPendingFollow, clearPendingFollow,
+    cancelPendingFollow,
   ])
 
   const previousView = useRef(transcriptView)
