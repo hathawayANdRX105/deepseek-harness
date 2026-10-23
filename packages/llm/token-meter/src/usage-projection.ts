@@ -168,7 +168,9 @@ export const tokenUsageProjectionDefinition = {
  * and a replacement shrinks it by its logged shadow price. A replacement
  * without a claim preserves the previous total. A usage sample is stamped
  * BEFORE the same event joins the surface, so an `assistant/message` anchors
- * against the surface its own request saw.
+ * against the surface its own request saw. A usage record reporting no
+ * prompt-side tokens measured no prompt, so the fold keeps the previous
+ * sample and its anchor.
  */
 export const contextPressureProjectionDefinition = {
   key: 'contextPressure',
@@ -192,7 +194,12 @@ export const contextPressureProjectionDefinition = {
     const usage = usageOf(event)
     if (usage !== undefined) {
       const pressureTokens = pressureFrom(usage)
-      if (pressureTokens !== next.pressureTokens || next.sampledSurfaceTokens !== next.surfaceTokens) {
+      // A refused request settles as an attempt whose usage record is all
+      // zeros: it measured no prompt, so it carries no pressure. Skipping the
+      // sample keeps the previous reading and its anchor, which would
+      // otherwise collapse to 0% of a context the conversation still occupies.
+      if (pressureTokens > 0
+        && (pressureTokens !== next.pressureTokens || next.sampledSurfaceTokens !== next.surfaceTokens)) {
         next = { ...next, pressureTokens, sampledSurfaceTokens: next.surfaceTokens }
       }
     }

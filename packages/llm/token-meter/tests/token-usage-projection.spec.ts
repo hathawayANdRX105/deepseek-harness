@@ -371,6 +371,34 @@ describe('contextPressure session projection', () => {
     expect(pressure(ctx, session)).toEqual({ contextWindow: 64_000 })
   })
 
+  it('keeps the last real pressure when a failed attempt reports zero usage', async () => {
+    const { ctx, session } = await harness()
+    recordContext(session, 'large', 128_000)
+    startStep(session, 1, 1)
+    usageChunk(session, { inputTokens: 1_000, outputTokens: 10 }, 1, 1)
+    session.append('step/end', { turn: 1, step: 1 })
+    // A request the provider refused — a rate limit, an unrouted upstream —
+    // settles as an `assistant/attempt` whose usage record is all zeros. That
+    // zero measured no prompt, so it must not replace the sample held.
+    startStep(session, 2, 1)
+    usageChunk(session, { inputTokens: 0, outputTokens: 0 }, 2, 1)
+    session.append('step/end', { turn: 2, step: 1 })
+    expect(pressure(ctx, session)).toEqual({
+      pressureTokens: 1_000,
+      projectedTokens: 1_000,
+      contextWindow: 128_000,
+    })
+  })
+
+  it('reports no pressure when only failed attempts reported usage', async () => {
+    const { ctx, session } = await harness()
+    recordContext(session, 'large', 128_000)
+    startStep(session, 1, 1)
+    usageChunk(session, { inputTokens: 0, outputTokens: 0 }, 1, 1)
+    session.append('step/end', { turn: 1, step: 1 })
+    expect(pressure(ctx, session)).toEqual({ contextWindow: 128_000 })
+  })
+
   it('sums prompt-side buckets and excludes response output', async () => {
     const { ctx, session } = await harness()
     startStep(session, 1, 1)
