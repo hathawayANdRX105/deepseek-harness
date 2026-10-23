@@ -161,7 +161,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
     // scrollport and clear `opened`, so stored scroll memory survives and the
     // next activation lands the way a freshly mounted Chat does.
     if (!active) {
-      clearPendingFollow()
+      cancelPendingFollow()
       reading.interruptFollow()
       reading.cancelSampling()
       content.current.opened = false
@@ -183,7 +183,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
   }, [
     viewport, reading, processContent, navigationInput, ready, order, lastKey, lastIsUser, active,
     steeringId, submissionId, running, loadedTurns, chatScroll, deferCompletedTurns, transcriptView,
-    cancelPendingFollow, clearPendingFollow,
+    cancelPendingFollow,
   ])
 
   const previousView = useRef(transcriptView)

@@ -130,7 +130,7 @@ function mountVisibleFold(test: typeof visibleFoldCases[number], reduced: boolea
   const onMotion = (value: FlowMotionRows): void => { motion = value }
   let input: ChatScrollInput = {
     ready: false, order: [], firstSeq: null, lastKey: null, lastIsUser: false,
-    steeringId: null, submissionId: null, running: false, deferCompletedTurns: true,
+    steeringId: null, submissionId: null, running: false, active: true, deferCompletedTurns: true,
     transcriptView: 'detailed', loadedTurns: [], hasMore: false, loadingOlder: false,
     loadOlder: vi.fn(), loadThrough: vi.fn(async () => {}), chatScroll: { read: () => null, save: vi.fn() },
   }
