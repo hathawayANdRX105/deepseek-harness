@@ -1,0 +1,26 @@
+{
+  // Node face: the plugin entry and its shared settings schema. Kept apart from
+  // the client face because the Host Context merges (settings, session) conflict
+  // with the Client session merge inside one program.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  "files": [
+    "src/index.ts",
+    "src/goal-settings.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../settings/settings"
+    }
+  ]
+}

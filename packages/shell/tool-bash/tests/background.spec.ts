@@ -122,7 +122,7 @@ describe('background bash output', () => {
       workdir: '/nonexistent-dsh',
       run_in_background: true,
     })
-    expect(text(started)).toMatch(/^started background job bash-[0-9a-f]{16}$/)
+    expect(text(started)).toMatch(/^started background job bash-\d+$/)
     const jobs = ctx.jobs
     const job = jobs.list()[0]
     await until(() => jobs.get(job!.id).status === 'killed' ? true : undefined)
@@ -217,21 +217,20 @@ describe('foreground commands as jobs', () => {
       })
       await until(() => execution?.observed.stdout.readFrom(0).text.includes('early-output') ? true : undefined, task.timeout)
       // The job exists from the start: the command is listed while the call still waits.
-      const jobId = ctx.jobs.list()[0]?.id
-      expect(jobId).toMatch(/^bash-[0-9a-f]{16}$/)
-      expect(ctx.jobs.list()[0]).toMatchObject({ id: jobId, kind: 'bash', status: 'running', label: 'printf "early-output\\n"; sleep 30' })
+      expect(ctx.jobs.list()[0]).toMatchObject({ id: 'bash-1', kind: 'bash', status: 'running', label: 'printf "early-output\\n"; sleep 30' })
       await vi.advanceTimersByTimeAsync(250)
       const result = await pending
       vi.useRealTimers()
       const body = text(result)
       expect(body).toContain('early-output')
-      expect(body).toContain(`[still running after 250ms; moved to background job ${jobId}]`)
-      expect(body).toContain('read newer output with job_output, stop it with job_kill')
+      expect(body).toContain('[still running after 250ms; moved to background job bash-1]')
+      expect(body).toContain('read newer output with job_output, or stop it with job_kill')
+      expect(body).toContain('use the grep tool')
       expect(body.indexOf('early-output')).toBeLessThan(body.indexOf('[still running'))
 
       const jobs = ctx.jobs
       const job = jobs.list()[0]
-      expect(job).toMatchObject({ id: jobId, status: 'running' })
+      expect(job).toMatchObject({ id: 'bash-1', status: 'running' })
       // The hand-over was one consuming read: the next read repeats nothing.
       expect(jobs.read(job!.id).chunks).toEqual([])
       expect(jobs.kill(job!.id, undefined, 'test cleanup')).toBe('requested')
@@ -454,8 +453,9 @@ describe('renderPromoted', () => {
   it('pins the promoted text with and without pre-promotion output', () => {
     expect(renderPromoted({ jobId: 'bash-7', timeoutMs: 120_000, output: '' })).toBe(
       '[still running after 120000ms; moved to background job bash-7]\n'
-      + 'The command keeps running in the background. You will be notified when it finishes; '
-      + 'read newer output with job_output, stop it with job_kill.',
+      + 'The command keeps running in the background and keeps consuming CPU and disk until it finishes or you stop it. '
+      + 'You will be notified when it finishes; read newer output with job_output, or stop it with job_kill. '
+      + 'If it searches or walks a directory tree, stop it and re-run with build and dependency directories excluded, or use the grep tool.',
     )
     // A partial line gains the separating newline exactly once.
     expect(renderPromoted({ jobId: 'bash-7', timeoutMs: 250, output: 'partial' }))

@@ -79,8 +79,9 @@ export function renderPromoted(promoted: { jobId: string; timeoutMs: number; out
     ? promoted.output.endsWith('\n') ? promoted.output : `${promoted.output}\n`
     : ''
   return `${body}[still running after ${promoted.timeoutMs}ms; moved to background job ${promoted.jobId}]\n`
-    + 'The command keeps running in the background. You will be notified when it finishes; '
-    + 'read newer output with job_output, stop it with job_kill.'
+    + 'The command keeps running in the background and keeps consuming CPU and disk until it finishes or you stop it. '
+    + 'You will be notified when it finishes; read newer output with job_output, or stop it with job_kill. '
+    + 'If it searches or walks a directory tree, stop it and re-run with build and dependency directories excluded, or use the grep tool.'
 }
 
 /**

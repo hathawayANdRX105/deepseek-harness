@@ -1,0 +1,70 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/guard/long-job-reminder/README.md
+/:
+  en: 9fe1613cf878f578
+  zh: 68e82d663be4d9dc
+/deepseek-ai-dsh-long-job-reminder:
+  en: 8cd09771af649a79
+  zh: dc4542f4aeefba85
+/deepseek-ai-dsh-long-job-reminder/summary:
+  en: 7eae9a009cbe1383
+  zh: b2b0a423e36640fa
+/deepseek-ai-dsh-long-job-reminder/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-long-job-reminder/use-this-package:
+  en: 533b1c676d8a1dce
+  zh: 58957157d1289912
+/deepseek-ai-dsh-long-job-reminder/use-this-package/when-to-choose-it:
+  en: e0e1ea2496d0e501
+  zh: 58d6cebcf082edfe
+/deepseek-ai-dsh-long-job-reminder/use-this-package/setting-the-budget-and-the-listing:
+  en: 02a8f2e4e8f1c221
+  zh: 6e58ba127d1b61a1
+/deepseek-ai-dsh-long-job-reminder/use-this-package/what-you-get:
+  en: ab1da28fbecacc4a
+  zh: 517a81cc4a9da4c5
+/deepseek-ai-dsh-long-job-reminder/understand-the-implementation:
+  en: 8a9465d06652b65f
+  zh: d7b137e0978c1b01
+/deepseek-ai-dsh-long-job-reminder/understand-the-implementation/design-philosophy:
+  en: 55c72cfd926ec456
+  zh: 08395a12c5381402
+/deepseek-ai-dsh-long-job-reminder/understand-the-implementation/the-due-rule-and-the-once-per-job-record:
+  en: ba3d876ef003d6d5
+  zh: 8db7d7b4d02353a0
+/deepseek-ai-dsh-long-job-reminder/understand-the-implementation/delivery-on-the-step-boundary:
+  en: 9b0ac3ed72c532eb
+  zh: 4a8f60f9a8879f04
+/deepseek-ai-dsh-long-job-reminder/understand-the-implementation/source-map:
+  en: df3106afcf7ab67b
+  zh: 1c0a465e9b1f1d5b
+/deepseek-ai-dsh-long-job-reminder/further-exploration:
+  en: f9c8596753c2ec74
+  zh: 8ba19dff28c7c435
+/deepseek-ai-dsh-long-job-reminder/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-long-job-reminder/model-experience/injected-reminder-notice:
+  en: 0c909f0e04897caf
+  zh: 0ce59215e985a50a
+/deepseek-ai-dsh-long-job-reminder/model-experience/injected-reminder-notice/what-the-model-sees:
+  en: eca748f4c3419512
+  zh: 9987e9fd5deead69
+/deepseek-ai-dsh-long-job-reminder/model-experience/injected-reminder-notice/what-the-model-sees/reminder-template:
+  en: 40f35e41e9098d86
+  zh: 5287a28eb3f564fd
+/deepseek-ai-dsh-long-job-reminder/model-experience/injected-reminder-notice/token-effect:
+  en: 5c632937fc231e77
+  zh: c8e8cc721e7bc1a7
+/deepseek-ai-dsh-long-job-reminder/model-experience/injected-reminder-notice/kv-cache-effect:
+  en: 5bbf3796903489be
+  zh: cf25eb52cbc21722
+/deepseek-ai-dsh-long-job-reminder/known-limitations-and-deferred-work:
+  en: 7240bf8c10365e20
+  zh: 06216f106ee28aee
+/deepseek-ai-dsh-long-job-reminder/known-limitations-and-deferred-work/dev-note:
+  en: 098590909bcf1e2a
+  zh: ba3f1f33cdb344a6

@@ -9,35 +9,38 @@
   en: fde8c9d75ef5c79b
   zh: 177db802d4dac57a
 /deepseek-ai-dsh-client-ui-goal/summary:
-  en: 615de8980e1b06c3
-  zh: 7fc3284c2bb00f20
+  en: 06f7b044e9c47053
+  zh: db2a241364ed2e95
 /deepseek-ai-dsh-client-ui-goal/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-client-ui-goal/use-this-package:
-  en: 4f6e6353d793a0de
-  zh: cde6e470f7dd9057
+  en: 6338ee3343316e49
+  zh: 012fe7994ea087e1
 /deepseek-ai-dsh-client-ui-goal/use-this-package/the-command-input-bubble:
   en: 05f0360b6c6dd3e9
   zh: d14c3f15dc4cea5b
+/deepseek-ai-dsh-client-ui-goal/use-this-package/the-auto-goal-toggle:
+  en: 7ce6e22311bd8daf
+  zh: 5c05285d802aa900
 /deepseek-ai-dsh-client-ui-goal/use-this-package/failures:
-  en: 097bbdd748dc17e5
-  zh: 867d341d046ba609
+  en: 4c73b7668e43fb0a
+  zh: 1b1bfd9db7306e71
 /deepseek-ai-dsh-client-ui-goal/understand-the-implementation:
-  en: ab510274586c2d1d
-  zh: 4f65fc3b8e367e1e
+  en: b15b56a51f254cc6
+  zh: 6ec24aacd97ebcd3
 /deepseek-ai-dsh-client-ui-goal/further-exploration:
   en: 591a317a4f0af7d9
   zh: b1665ca4f6fb811e
 /deepseek-ai-dsh-client-ui-goal/model-experience:
-  en: 53ca3b1f16b1ef44
-  zh: 39254d4076e3723d
+  en: c53d0abd69e06fab
+  zh: da639ef39882daf2
 /deepseek-ai-dsh-client-ui-goal/model-experience/kv-cache-effect:
   en: 68c9a2a057acb6cf
   zh: baba87876e432666
 /deepseek-ai-dsh-client-ui-goal/known-limitations-and-deferred-work:
-  en: bbb97ea1b94eae0f
-  zh: 8e6b0e0516746dcf
+  en: e5b9cb74a319aff7
+  zh: 936ddf79e9a3f8ca
 /deepseek-ai-dsh-client-ui-goal/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98
