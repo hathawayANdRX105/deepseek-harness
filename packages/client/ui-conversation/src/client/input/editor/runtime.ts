@@ -16,6 +16,7 @@ import { ReferenceChipNode, $createReferenceChipNode } from './chip-node.tsx'
 import { CommandChipNode, $createCommandChipNode, registerCommandChipSeat } from './command-chip-node.tsx'
 import { registerCommandChipSelection } from './command-chip-selection.ts'
 import { registerTextRefDecoration, rescanTextRefs, TextRefNode } from './text-ref.ts'
+import { registerInsertSelectionGuard } from './insert-selection-guard.ts'
 import type { EditorProjection } from './projection.ts'
 import { $composerLayout, $projectComposer, detectOffsetOfClipboardOffset } from './projection.ts'
 import { $replaceDetectSpanWithNodes, $replaceDetectSpanWithText } from './span-map.ts'
@@ -94,6 +95,7 @@ export class DraftEditorRuntime {
       registerCommandChipSeat(this.editor),
       registerCommandChipSelection(this.editor),
       registerTextRefDecoration(this.editor, () => this.deps.lexicon()),
+      registerInsertSelectionGuard(this.editor),
       () => {
         this.lexiconOff?.()
         this.lexiconOff = undefined

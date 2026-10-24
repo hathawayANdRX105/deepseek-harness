@@ -14,6 +14,11 @@ export const zh = {
   'action.resume': '恢复目标',
   'action.edit': '编辑目标',
   'action.clear': '清除目标',
+  'autoGoal.label': 'goal',
+  'autoGoal.on.aria': '关闭自动目标模式',
+  'autoGoal.off.aria': '开启自动目标模式',
+  'autoGoal.on.title': '每次发送 prompt 都会自动创建目标并持续运行，点击关闭',
+  'autoGoal.off.title': '开启后，每次发送 prompt 都会自动创建目标并持续运行',
 } satisfies Record<string, string>
 
 /** The goal namespace key union. */
@@ -33,4 +38,9 @@ export const en = {
   'action.resume': 'Resume goal',
   'action.edit': 'Edit goal',
   'action.clear': 'Clear goal',
+  'autoGoal.label': 'goal',
+  'autoGoal.on.aria': 'Turn off auto goal mode',
+  'autoGoal.off.aria': 'Turn on auto goal mode',
+  'autoGoal.on.title': 'Every sent prompt becomes a goal and keeps running; click to turn off',
+  'autoGoal.off.title': 'When on, every sent prompt becomes a goal and keeps running',
 } satisfies Record<GoalKey, string>

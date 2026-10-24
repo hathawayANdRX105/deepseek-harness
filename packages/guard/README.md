@@ -1,5 +1,5 @@
 ---
-description: "Package map for the loop-hygiene guard family: the advisory repeat-tool reminder and the per-tool-call timeout policy, for users and maintainers choosing or composing the guards."
+description: "Package map for the loop-hygiene guard family: the repeat-tool reminder, the tool-call timeout policy, the unbounded-scan policy, and the job-duration reminder, for users and maintainers choosing or composing the guards."
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `guard/` group keeps the agent loop productive by watching for two common failure patterns. `repeat-tool-reminder` notices when the model repeats the exact same tool call and reminds it to change approach or finish, so a stuck loop stops burning time and tokens. `timeout-policy` puts a time limit on tool calls that declare one, so a hung call returns a clear timed-out error to the model instead of stalling the session. Both ship enabled in the `dsh` base bundle; a composition can tune or remove them.
+The `guard/` group keeps the agent loop productive and its resource use bounded. `repeat-tool-reminder` notices an identical tool call repeated without progress and asks the model to change approach or finish. `timeout-policy` gives tool calls their declared cooperative time limits and returns a clear timeout error after cancellation settles. `unbounded-scan-guard` denies a tree-wide shell search whose starting directory holds build or dependency trees, naming the narrowed command to run instead. `long-job-reminder` tells the model about background jobs that outlived their budget so it can collect or stop them. All four ship enabled in the `dsh` base bundle.
 
 ## Table of Contents
 
@@ -22,22 +22,25 @@ The `guard/` group keeps the agent loop productive by watching for two common fa
 <a id="packages"></a>
 ## Packages
 
-Two small plugins cover the two patterns; each README below explains when to keep, tune, or remove it.
+Four plugins cover the group's patterns; each README below explains when to keep, tune, or remove it.
 
 | Package | What it provides |
 |---|---|
 | [`repeat-tool-reminder/`](repeat-tool-reminder/README.md) | Reminds the model when it repeats the same tool call, so it changes approach or finishes |
 | [`timeout-policy/`](timeout-policy/README.md) | Times out tool calls that declare a limit, so the model gets a clear error instead of waiting forever |
+| [`unbounded-scan-guard/`](unbounded-scan-guard/README.md) | Denies a tree-wide shell search over build or dependency trees and names the narrowed command |
+| [`long-job-reminder/`](long-job-reminder/README.md) | Tells the model about background jobs past their budget, so it can collect or stop them |
 
 -----
 
 <a id="related-documentation"></a>
 ## Related documentation
 
-Start with the tools subsystem reference for the tool-call pipeline, then the reminder's configuration and the timeout-library decision behind the policy.
+Start with the tools subsystem reference for the tool-call pipeline and the background job runtime for the registry the job reminder reads, then the guard configuration and the timeout-library decision behind the policy.
 
-- [Tools subsystem reference](../../docs/subsystems/tools.md) — the tool-call pipeline and decisions both guards build on.
-- [Generated configuration catalog](../../docs/config-catalog.md#deepseek-aidsh-repeat-tool-reminder) — every accepted field of the repeat-call reminder.
+- [Tools subsystem reference](../../docs/subsystems/tools.md) — the tool-call pipeline and the decisions every guard builds on.
+- [Background job runtime](../../docs/subsystems/jobs.md) — the job registry, statuses, and views `long-job-reminder` reads.
+- [Generated configuration catalog](../../docs/config-catalog.md) — every accepted field of the repeat-call reminder, the scan policy, the job reminder, and the tools whose limits `timeout-policy` enforces.
 - [Timeout deadline library Agent Note](../../.agents/notes/implemented/architecture/2026-07-06-timeout-deadline-library.md) — the timing/termination split `timeout-policy` enforces.
 
 <a id="dev-note"></a>

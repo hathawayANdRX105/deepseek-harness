@@ -408,12 +408,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       inject: ChatNodeInjected
     }
     /**
-     * Renderer for one consecutive group of durable message images. The owner
-     * supplies image references, an authorized loader, and alignment. A
-     * registration replaces the shipped gallery; without one, images are omitted.
+     * Renderer for one consecutive group of durable message images inside an
+     * assistant message. The owner supplies image references, an authorized
+     * loader, and alignment. A registration replaces the shipped gallery;
+     * without one, images are omitted.
      */
     'conversation.chat.message.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
-    /** User-message images, including pending and local-echo previews, independently replaceable from output images. */
+    /**
+     * Renderer for the images attached to one user message. The owner supplies
+     * image references, an authorized loader, and alignment. A registration
+     * replaces the shipped gallery; without one, images are omitted.
+     */
     'conversation.chat.user.images': { kind: 'single'; scope: 'session'; owner: MessageImagesOwnerProps }
     /**
      * Command row keyed by the command name. The component receives the folded
