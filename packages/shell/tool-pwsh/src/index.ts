@@ -126,8 +126,6 @@ function pwshDescription(windowsSandbox: boolean): string {
     + 'variables with `$env:NAME`. '
     + 'Managed `$env:DSH_*` variables expose current harness environment facts. '
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
-    + 'For content search across a repository use the grep tool: it searches with ripgrep, honors ignore files, and is bounded by its own timeout and result caps. '
-    + 'A recursive `Select-String` or `Get-ChildItem -Recurse` over a project root walks build and dependency directories too; scope it with explicit paths or `-Exclude`. '
     + 'On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. '
     + 'Provide `description` before `command` in the arguments. '
     + 'Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. '
@@ -402,7 +400,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           type: 'number',
           description: promote
             ? 'Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed.'
-            : 'Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry; raise it, or use `run_in_background`, when the work legitimately needs longer.',
+            : 'Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry.',
         },
         workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },
         ...background ? {

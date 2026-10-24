@@ -27,20 +27,20 @@ id: 2026-10-18-long-job-reminder-source
 baseline: false
 changes:
   - root: "event:agent/inbox/spliced"
-    previous: "2026-10-05-working-directory-attribution"
-    after: "a276978f8fd69ea2adfbeb51b85236bb73db82924e013071c0e19d1009f08219"
+    previous: "2026-10-13-user-rpc-principal"
+    after: "c104b0cd8b32a691f7166bc6ed6c7e741a5dcba2e06d13645e88c50c8cee2fe5"
     decision: same-version
   - root: "event:developer/message"
-    previous: "2026-10-05-working-directory-attribution"
-    after: "d4e594be3cd5621757f1927d7074b8f9242950a6231c38b16d07d77bda1d9171"
+    previous: "2026-10-13-user-rpc-principal"
+    after: "0a80aac7a8640a9b7f508d1827c6c1e88c0f65436cefbf2a833900332e6a457b"
     decision: same-version
   - root: "event:session/title-llm-request"
-    previous: "2026-10-07-title-reasoning-effort"
-    after: "4b5f1efa4b07e63ea9d1d4528182bc9123e80baafe8cf4ffdf1450fc2efc504c"
+    previous: "2026-10-13-user-rpc-principal"
+    after: "5b21722e0616826fe9ec403eca153ea8f8662e8f53fa604b3001de7c6896b56a"
     decision: same-version
   - root: "event:user/message"
-    previous: "2026-10-05-working-directory-attribution"
-    after: "4ec27a54ddaa8b997377b27498bb459d4342e941c1571ada3ebf55901b581831"
+    previous: "2026-10-13-user-rpc-principal"
+    after: "aeb5f99e278983e6a5861f13dbcea70159545a00bde505cb5896f59884f590a5"
     decision: same-version
 ```
 

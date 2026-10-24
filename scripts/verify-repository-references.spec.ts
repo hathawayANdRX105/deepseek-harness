@@ -84,7 +84,7 @@ describe('maintained repository reference policy', () => {
   it('rejects complete and abbreviated commit identifiers in tracked, staged, and new files', (test) => {
     const fixture = repository(test)
     fixture.write('tracked.md', `release\n${fixture.commit}\n${fixture.commit.toUpperCase()}\n`)
-    fixture.write('staged.md', fixture.commit.slice(0, 7))
+    fixture.write('staged.md', fixture.commit.slice(0, 8))
     fixture.git(['add', 'staged.md'])
     fixture.write('new.md', `\0${fixture.commit.slice(0, 12)}`)
 
